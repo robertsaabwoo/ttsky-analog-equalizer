@@ -6,7 +6,7 @@ V {}
 S {}
 E {}
 N 80 -50 80 -10 {
-lab=#net1}
+lab=STRONG_OUT1}
 N 40 -80 40 20 {
 lab=weak_in}
 N 40 -80 40 20 {
@@ -32,13 +32,13 @@ lab=VSS}
 N -10 -30 40 -30 {
 lab=weak_in}
 N 80 -20 220 -20 {
-lab=#net1}
+lab=STRONG_OUT1}
 N 310 -40 310 0 {
-lab=#net2}
+lab=STRONG_OUT2}
 N 270 -70 270 30 {
-lab=#net1}
+lab=STRONG_OUT1}
 N 270 -70 270 30 {
-lab=#net1}
+lab=STRONG_OUT1}
 N 310 -130 310 -100 {
 lab=VDD}
 N 310 -70 390 -70 {
@@ -58,13 +58,13 @@ lab=VSS}
 N 310 60 310 80 {
 lab=VSS}
 N 220 -20 270 -20 {
-lab=#net1}
+lab=STRONG_OUT1}
 N 530 -30 530 10 {
 lab=STRONG_OUT}
 N 490 -60 490 40 {
-lab=#net2}
+lab=STRONG_OUT2}
 N 490 -60 490 40 {
-lab=#net2}
+lab=STRONG_OUT2}
 N 530 -120 530 -90 {
 lab=VDD}
 N 530 -60 610 -60 {
@@ -86,7 +86,15 @@ lab=VSS}
 N 530 0 670 0 {
 lab=STRONG_OUT}
 N 310 -10 490 -10 {
-lab=#net2}
+lab=STRONG_OUT2}
+N 210 -200 210 -20 {
+lab=STRONG_OUT1}
+N 210 -200 690 -200 {
+lab=STRONG_OUT1}
+N 430 -170 430 -10 {
+lab=STRONG_OUT2}
+N 430 -170 690 -170 {
+lab=STRONG_OUT2}
 C {devices/iopin.sym} -260 -90 0 0 {name=p1 lab=VDD
 
 
@@ -187,4 +195,6 @@ spiceprefix=X
 }
 C {devices/lab_wire.sym} 530 -120 0 0 {name=p7 sig_type=std_logic lab=VDD}
 C {devices/lab_wire.sym} 530 90 0 0 {name=p8 sig_type=std_logic lab=VSS}
-C {devices/opin.sym} 670 0 0 0 {name=p10 lab=STRONG_OUT}
+C {devices/opin.sym} 670 0 0 0 {name=p10 lab=STRONG_OUT3}
+C {devices/opin.sym} 690 -170 0 0 {name=p11 lab=STRONG_OUT2}
+C {devices/opin.sym} 690 -200 0 0 {name=p12 lab=STRONG_OUT1}

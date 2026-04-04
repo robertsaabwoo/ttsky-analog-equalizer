@@ -1,0 +1,67 @@
+** sch_path: /home/ttuser/Documents/ttsky-analog-equalizer/xschem/CTLE_Alone_TestBench.sch
+**.subckt CTLE_Alone_TestBench
+V3 Vdd GND 1.8
+V1 Vss GND 0
+R1 vin+_bad vin+ 500 m=1
+R2 vin-_bad vin- 500 m=1
+C1 Vss vin+_bad 1p m=1
+C2 vin-_bad Vss 1p m=1
+V2 net1 GND PWL(0 1.8 5n 1.8 5.05n 0 6n 0 6.05n 1.8 7n 1.8 7.05n 0 9n 0 9.05n 1.8 11n 1.8)
+V4 net3 GND PWL(0 0 5n 0 5.05n 1.8 6n 1.8 6.05n 0 7n 0 7.05n 1.8 9n 1.8 9.05n 0 11n 0)
+V5 net2 GND 0.9
+V6 vin+ net1 TRNOISE(10m 50p 0 0)
+V7 vin- net3 TRNOISE(10m 50p 0 0)
+x2 vout+_temp vout-_temp vin+_bad vin-_bad Vdd Vss vbias CTLE
+R8 vbias net2 500 m=1
+C5 vbias Vss 1p m=1
+V8 clk- GND PULSE(1.8 0 0 20p 20p 0.98n 2n)
+V9 clk+ GND PULSE(0 1.8 0 20p 20p 0.98n 2n)
+**** begin user architecture code
+
+
+
+*.lib /home/ttuser/pdk/sky130A/libs.tech/ngspice/sky130.lib.spice tt
+.options method=gear reltol=0.001 abstol=1e-3
+.op
+.control
+  tran 10p 15n
+  write CTLE_WITH_LATCH.raw
+.endc
+
+
+
+
+** opencircuitdesign pdks install
+.lib /home/ttuser/pdk/sky130A/libs.tech/ngspice/sky130.lib.spice tt
+
+
+**** end user architecture code
+**.ends
+
+* expanding   symbol:  CTLE.sym # of pins=7
+** sym_path: /home/ttuser/Documents/ttsky-analog-equalizer/xschem/CTLE.sym
+** sch_path: /home/ttuser/Documents/ttsky-analog-equalizer/xschem/CTLE.sch
+.subckt CTLE vout+ vout- vin+ vin- VDD VSS vbias
+*.iopin VDD
+*.iopin VSS
+*.ipin vin+
+*.ipin vin-
+*.opin vout-
+*.opin vout+
+*.ipin vbias
+XM1 vout+ vin+ net1 VSS sky130_fd_pr__nfet_01v8 L=0.3 W=10 nf=1 ad='int((nf+1)/2) * W/nf * 0.29' as='int((nf+2)/2) * W/nf * 0.29' pd='2*int((nf+1)/2) * (W/nf + 0.29)'
++ ps='2*int((nf+2)/2) * (W/nf + 0.29)' nrd='0.29 / W' nrs='0.29 / W' sa=0 sb=0 sd=0 mult=1 m=1
+XM2 net1 vbias VSS VSS sky130_fd_pr__nfet_01v8 L=0.5 W=10 nf=1 ad='int((nf+1)/2) * W/nf * 0.29' as='int((nf+2)/2) * W/nf * 0.29' pd='2*int((nf+1)/2) * (W/nf + 0.29)'
++ ps='2*int((nf+2)/2) * (W/nf + 0.29)' nrd='0.29 / W' nrs='0.29 / W' sa=0 sb=0 sd=0 mult=1 m=1
+XM4 vout- vin- net2 VSS sky130_fd_pr__nfet_01v8 L=0.3 W=10 nf=1 ad='int((nf+1)/2) * W/nf * 0.29' as='int((nf+2)/2) * W/nf * 0.29' pd='2*int((nf+1)/2) * (W/nf + 0.29)'
++ ps='2*int((nf+2)/2) * (W/nf + 0.29)' nrd='0.29 / W' nrs='0.29 / W' sa=0 sb=0 sd=0 mult=1 m=1
+XR1 vout+ VDD VSS sky130_fd_pr__res_high_po W=1 L=16 mult=1 m=1
+XR2 vout- VDD VSS sky130_fd_pr__res_high_po W=1 L=16 mult=1 m=1
+XR4 net2 net1 VSS sky130_fd_pr__res_high_po W=1 L=1.38 mult=1 m=1
+XC1 net2 net1 sky130_fd_pr__cap_mim_m3_1 W=26 L=13 MF=1 m=1
+XM3 net2 vbias VSS VSS sky130_fd_pr__nfet_01v8 L=0.5 W=10 nf=1 ad='int((nf+1)/2) * W/nf * 0.29' as='int((nf+2)/2) * W/nf * 0.29' pd='2*int((nf+1)/2) * (W/nf + 0.29)'
++ ps='2*int((nf+2)/2) * (W/nf + 0.29)' nrd='0.29 / W' nrs='0.29 / W' sa=0 sb=0 sd=0 mult=1 m=1
+.ends
+
+.GLOBAL GND
+.end

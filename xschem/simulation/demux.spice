@@ -1,0 +1,31 @@
+** sch_path: /home/ttuser/Documents/ttsky-analog-equalizer/xschem/demux.sch
+**.subckt demux
+x5 vout0 vin clk VCC VSS VCC VSS LATCH
+x6 vout1 vin clk VCC VSS VCC VSS LATCHI
+V2 clk GND PULSE(0 1.8 0 20p 20p 0.48n 1n)
+V4 vin GND PWL(0 0 20p 1.8 2n 1.8 2.02n 0 3n 0 3.02n 1.8 4n 1.8 4.02n 0)
+**** begin user architecture code
+
+
+
+*.lib /home/ttuser/pdk/sky130A/libs.tech/ngspice/sky130.lib.spice tt
+*.include /home/ttuser/pdk/sky130A/libs.ref/sky130_fd_sc_hd/spice/sky130_fd_sc_hd.spice
+
+.options method=gear reltol=0.001 abstol=1e-12
+.op
+.control
+  tran 10p 10n
+  write demux.raw
+.endc
+
+
+
+
+** opencircuitdesign pdks install
+.lib /home/ttuser/pdk/sky130A/libs.tech/ngspice/sky130.lib.spice tt
+
+
+**** end user architecture code
+**.ends
+.GLOBAL GND
+.end
