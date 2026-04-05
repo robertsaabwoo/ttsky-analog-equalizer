@@ -148,7 +148,7 @@ C {devices/lab_wire.sym} 1660 -180 0 1 {name=p49 sig_type=std_logic lab=bias_p
 }
 C {devices/lab_wire.sym} 1690 80 0 0 {name=p37 sig_type=std_logic lab=bias_n
 }
-C {devices/opin.sym} 2700 430 0 0 {name=p17 lab=rclk-}
+C {devices/opin.sym} 2700 450 0 0 {name=p17 lab=rclk-}
 C {devices/iopin.sym} 900 -150 2 1 {name=p38 lab=Vdd
 
 
@@ -173,8 +173,8 @@ C {devices/lab_wire.sym} 2160 -70 0 0 {name=p11 sig_type=std_logic lab=Vdd
 }
 C {devices/lab_wire.sym} 2160 -30 0 0 {name=p12 sig_type=std_logic lab=Vss
 }
-C {s2d.sym} 2550 420 0 0 {name=x4}
-C {devices/opin.sym} 2700 410 0 0 {name=p13 lab=rclk+}
+C {s2d.sym} 2550 440 0 0 {name=x4}
+C {devices/opin.sym} 2700 430 0 0 {name=p13 lab=rclk+}
 C {devices/lab_wire.sym} 1260 -100 0 0 {name=p15 sig_type=std_logic lab=rclk+
 }
 C {devices/lab_wire.sym} 1260 -80 0 0 {name=p16 sig_type=std_logic lab=rclk-
