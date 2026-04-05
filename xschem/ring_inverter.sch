@@ -80,8 +80,8 @@ C {devices/ipin.sym} -340 370 0 0 {name=p7 lab=vin-
 
 }
 C {sky130_fd_pr/nfet_01v8.sym} -220 490 0 0 {name=M5
-L=1
-W=9
+L=0.5
+W=6
 nf=1
 mult=1
 ad="'int((nf+1)/2) * W/nf * 0.29'" 
@@ -116,14 +116,14 @@ C {devices/ipin.sym} -50 370 0 1 {name=p5 lab=vin+
 }
 C {sky130_fd_pr/res_high_po.sym} -100 240 0 0 {name=R1
 W=1
-L=30
+L=25
 model=res_high_po
 spiceprefix=X
 mult=1}
 C {devices/lab_wire.sym} -120 240 0 0 {name=p8 sig_type=std_logic lab=VSS}
 C {sky130_fd_pr/res_high_po.sym} -310 240 0 0 {name=R2
 W=1
-L=30
+L=25
 model=res_high_po
 spiceprefix=X
 mult=1}
