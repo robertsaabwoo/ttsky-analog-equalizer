@@ -250,15 +250,15 @@ value="
 .options method=gear reltol=0.001 abstol=1e-12
 .op
 .control
-  tran 10p 15n
+  tran 10p 100n
   setic v(v_ctrl)=0.9
   write CDR_tb.raw
 .endc
 "}
-C {devices/vsource.sym} -1760 505 0 0 {name=V2 value="PULSE(0 1.8 0 10p 10p 0.5n 1n)" savecurrent=false
+C {devices/vsource.sym} -1760 505 0 0 {name=V2 value="PULSE(0 1.8 0 10p 10p 1.67n 3.33n)" savecurrent=false
 lab=vin+}
 C {devices/gnd.sym} -1760 535 0 0 {name=l2 lab=GND}
-C {devices/vsource.sym} -1600 520 0 0 {name=V4 value="PULSE(1.8 0 0 10p 10p 0.5n 1n)" savecurrent=false}
+C {devices/vsource.sym} -1600 520 0 0 {name=V4 value="PULSE(1.8 0 0 10p 10p 1.67n 3.33n)" savecurrent=false}
 C {devices/gnd.sym} -1600 550 0 0 {name=l4 lab=GND}
 C {devices/vsource.sym} -1800 320 0 0 {name=V5 value=0.9 savecurrent=false}
 C {devices/gnd.sym} -1800 350 0 0 {name=l5 lab=GND

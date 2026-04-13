@@ -21,7 +21,7 @@ C {devices/vsource.sym} -890 190 0 0 {name=V1 value=0 savecurrent=false}
 C {devices/gnd.sym} -890 220 0 0 {name=l1 lab=GND}
 C {devices/lab_wire.sym} -890 160 0 0 {name=p1 sig_type=std_logic lab=Vss
 }
-C {devices/simulator_commands_shown.sym} -1090 -350 0 0 {name=COMMANDS
+C {devices/simulator_commands_shown.sym} -1100 -350 0 0 {name=COMMANDS
 simulator=ngspice
 only_toplevel=false 
 value="

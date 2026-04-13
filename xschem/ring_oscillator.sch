@@ -74,34 +74,56 @@ lab=Vdd}
 N 1240 240 1300 240 {
 lab=Vss}
 N 1240 260 1270 260 {
-lab=#net8}
-N 1270 260 1270 340 {
-lab=#net8}
+lab=#net9}
 N 1240 280 1310 280 {
-lab=#net7}
+lab=#net10}
 N 1310 280 1320 280 {
-lab=#net7}
-N 1330 40 1330 280 {
-lab=#net7}
+lab=#net10}
 N 1320 280 1330 280 {
-lab=#net7}
-N 1270 260 1380 260 {
+lab=#net10}
+N 1270 260 1350 260 {
+lab=#net9}
+N 1330 280 1350 280 {
+lab=#net10}
+N 1320 330 1350 330 {
+lab=vctrl}
+N 1350 300 1350 330 {
+lab=vctrl}
+N 1270 340 1650 340 {
 lab=#net8}
-N 1380 260 1380 300 {
+N 1650 320 1650 340 {
 lab=#net8}
-N 1380 300 1390 300 {
+N 1330 40 1650 40 {
+lab=#net7}
+N 1650 300 1700 300 {
+lab=#net7}
+N 1700 40 1700 300 {
+lab=#net7}
+N 1650 40 1700 40 {
+lab=#net7}
+N 1650 260 1680 260 {
+lab=Vdd}
+N 1680 220 1680 260 {
+lab=Vdd}
+N 1660 220 1680 220 {
+lab=Vdd}
+N 1650 280 1710 280 {
+lab=Vss}
+N 1650 320 1700 320 {
 lab=#net8}
-N 1300 320 1390 320 {
-lab=#net7}
-N 1300 280 1300 320 {
-lab=#net7}
-N 1690 300 1720 300 {
+N 1670 390 1700 390 {
 lab=Vdd}
-N 1720 260 1720 300 {
+N 1700 340 1700 390 {
 lab=Vdd}
-N 1700 260 1720 260 {
+N 2000 300 2030 300 {
 lab=Vdd}
-N 1690 320 1750 320 {
+N 2030 260 2030 300 {
+lab=Vdd}
+N 2010 260 2030 260 {
+lab=Vdd}
+N 2000 320 2060 320 {
+lab=Vss}
+N 2060 310 2060 320 {
 lab=Vss}
 C {ring_inverter.sym} -220 130 0 0 {name=x1}
 C {devices/lab_wire.sym} -60 60 0 0 {name=p2 sig_type=std_logic lab=Vdd
@@ -133,8 +155,8 @@ C {devices/iopin.sym} 70 -80 0 0 {name=p5 lab=Vss
 C {devices/ipin.sym} -370 140 0 0 {name=p7 lab=vctrl
 
 }
-C {devices/opin.sym} 1690 360 0 0 {name=p12 lab=vo+}
-C {devices/opin.sym} 1690 340 0 0 {name=p16 lab=vo-}
+C {devices/opin.sym} 2000 360 0 0 {name=p12 lab=vo+}
+C {devices/opin.sym} 2000 340 0 0 {name=p16 lab=vo-}
 C {devices/lab_wire.sym} 1250 180 0 0 {name=p4 sig_type=std_logic lab=Vdd
 }
 C {devices/lab_wire.sym} 1300 240 0 0 {name=p6 sig_type=std_logic lab=Vss
@@ -142,10 +164,17 @@ C {devices/lab_wire.sym} 1300 240 0 0 {name=p6 sig_type=std_logic lab=Vss
 C {devices/lab_wire.sym} 940 260 0 0 {name=p8 sig_type=std_logic lab=vctrl
 }
 C {ring_inverter.sym} 1090 250 0 0 {name=x5}
-C {diff_amp_inv.sym} 1540 330 0 0 {name=x4}
-C {devices/lab_wire.sym} 1700 260 0 0 {name=p9 sig_type=std_logic lab=Vdd
+C {ring_inverter.sym} 1500 290 0 0 {name=x4}
+C {devices/lab_wire.sym} 1320 330 0 0 {name=p9 sig_type=std_logic lab=vctrl
 }
-C {devices/lab_wire.sym} 1750 320 0 0 {name=p10 sig_type=std_logic lab=Vss
+C {devices/lab_wire.sym} 1660 220 0 0 {name=p10 sig_type=std_logic lab=Vdd
 }
-C {devices/lab_wire.sym} 1390 340 0 0 {name=p11 sig_type=std_logic lab=Vdd
+C {devices/lab_wire.sym} 1710 280 0 0 {name=p11 sig_type=std_logic lab=Vss
+}
+C {diff_amp_inv.sym} 1850 330 0 0 {name=x6}
+C {devices/lab_wire.sym} 1670 390 0 0 {name=p15 sig_type=std_logic lab=Vdd
+}
+C {devices/lab_wire.sym} 2010 260 0 0 {name=p17 sig_type=std_logic lab=Vdd
+}
+C {devices/lab_wire.sym} 2060 310 0 0 {name=p18 sig_type=std_logic lab=Vss
 }
