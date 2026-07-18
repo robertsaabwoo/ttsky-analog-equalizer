@@ -1,6 +1,6 @@
 ![](../../workflows/gds/badge.svg) ![](../../workflows/docs/badge.svg)
-[IN PROGRESS]
-# Tiny Tapeout Analog Project Template
+
+# [IN PROGRESS] Tiny Tapeout Analog Project Template
 
 - [Read the documentation for project](docs/info.md)
 
