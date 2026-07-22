@@ -1422,6 +1422,43 @@ startup precharge, now justified for cold-start robustness (NOT for real caps).
 Next: validate that precharging vctrl to ~0.79 V lets the bad polarity acquire
 (§16h).
 
+## 16h. Precharge fix VALIDATED — a vctrl startup seed makes cold-start polarity-independent
+
+Same bad-polarity netlist (§16g) + `.ic v(x1.net1)=0.79` (models a startup precharge
+that lifts vctrl above the 0.65 V dead-zone cliff at t=0). `runs/pol_ic.spice`, under
+`safe_ngspice.sh`. **Result: it acquires and locks.**
+- e_vctrl (40-120n) = 0.792, m_vctrl (600-700n) = 0.792, l_vctrl (1100-1200n) = 0.792
+  — locked from t=0, holds.
+- l_cp_pp = 1.875 V — clk+ rail-to-rail.
+- period (c660-c600)/60 = 1.6648 ns -> **600.68 MHz**.
+
+So seeding vctrl above the cliff at power-up removes the polarity dependence: once
+the VCO is alive and near 600 MHz, the bang-bang loop takes over and locks
+regardless of data polarity (proven for the polarity that previously failed).
+
+### The complete picture (session 6)
+
+1. Root cause: PLL blocks repurposed as a reference-less bang-bang CDR -> no
+   frequency acquisition (§15c). Not a frequency limit.
+2. Cap-size acquisition failure (real caps too slow, vctrl bleeds through the cliff
+   before acquiring) -> FIX: shrink the loop-filter caps (legitimate CDR retune, a
+   bang-bang CDR wants higher bandwidth). Validated: 600.6 MHz lock, 0.68% UI RMS
+   jitter (§16b), CID pass to 15 UI (§16e).
+3. Polarity-dependent cold-start (even shrunk caps only acquire for one power-up
+   polarity, §16g) -> FIX: startup precharge vctrl to ~0.79 V. Validated (§16h).
+
+### Remaining engineering (deferred, needs the user / more sims)
+
+- **Build the real precharge circuit**: a device that pulls the loop-filter node to
+  ~0.79 V at power-up and releases after acquisition (self-timed one-shot, or an
+  enable pin). `.ic` proves the concept; the release timing + PVT need a real design.
+  Note the §15 source-follower is NOT the way (it fights the locked loop). A one-shot
+  switch to a bias, released once locked, is clean.
+- Proper differential slicer to replace the variant-E clkraw- inversion (§13f).
+- d_latch ~5% CML/inverter margin (§12a); PVT corners; the duty-cycle spend (§14d).
+- Re-confirm on real caps only if a precharge lets them acquire (would trade jitter
+  for CID margin — but shrunk caps already pass both, so low priority).
+
 ## (superseded) earlier note — polarity test had been paused after a VM crash
 
 The opposite-`.op`-seed acquisition test (`pol.spice`: swap the two PULSE initial
