@@ -1398,7 +1398,31 @@ can power up on either polarity -> **must verify the loop acquires from the oppo
 precharge, now for acquisition robustness rather than for real caps) may be
 warranted even with shrunk caps.
 
-## 16g. Polarity robustness test — NOT RUN (VM crash), sims paused
+## 16g. Polarity robustness test — FAIL: acquisition depends on power-up polarity
+
+Re-run safely under `safe_ngspice.sh` (memcap 2.5G, watchdog, 1200n, save-limited,
+no raw — `runs/pol_light.spice`). Opposite `.op` seed = swap the two PULSE initial
+values so `vin+` starts HIGH. **Result: the loop NEVER acquires.**
+- e_vctrl (40-120n) = 18 uV, m_vctrl (600-700n) = 18 uV, l_vctrl (1100-1200n) = 18 uV
+  — vctrl stuck at ~0 the whole run.
+- l_cp_pp (1100-1200n) = 6 mV — clk+ not swinging, VCO dead.
+- c600/c660 crossings "out of interval" — no clock ever oscillated.
+
+The ONLY change vs the locking §16b jitter run is the swapped power-up polarity, so
+this is a genuine effect: **the §14/§16 lock depends on a favorable initial data
+polarity.** Cold-start kicks vctrl up only when the t=0 PD/latch state (set by the
+`.op` data seed) drives `up`; from the other seed the CP net-discharges and vctrl
+never clears the 0.65 V dead-zone cliff. Mechanistically identical to the real-cap
+failure (§15a), just triggered by polarity instead of cap size.
+
+**Implication:** shrunk caps fix cap-size acquisition and pass jitter+CID, but
+cold-start is not polarity-robust. A real link can power up either way (~50% fail).
+So a polarity-independent cold-start aid IS needed even with shrunk caps — the §15
+startup precharge, now justified for cold-start robustness (NOT for real caps).
+Next: validate that precharging vctrl to ~0.79 V lets the bad polarity acquire
+(§16h).
+
+## (superseded) earlier note — polarity test had been paused after a VM crash
 
 The opposite-`.op`-seed acquisition test (`pol.spice`: swap the two PULSE initial
 values so `vin+` starts HIGH, otherwise identical to §16b) was launched but the VM
