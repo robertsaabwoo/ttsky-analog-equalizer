@@ -1356,7 +1356,47 @@ info and the VCO runs **open-loop**, so vctrl/phase drift. Crucially, **smaller
 caps drift MORE per cycle** (less stored charge, higher sensitivity), so CID could
 hurt the shrunk-cap design specifically — exactly what the 0101 jitter number does
 NOT capture. This is the decisive remaining test: stress with a data run of K
-identical symbols and measure recovered-clock phase drift. See §16d.
+identical symbols and measure recovered-clock phase drift. See §16e.
+
+## 16e. CID stress result — shrunk caps PASS (runs of 5/10/15 UI, loop stays locked)
+
+Built a PWL data stimulus (`runs/cid.spice`) = the 0101 pattern with three
+no-transition bursts inserted: run lengths **5, 10, 15 UI** at ~1200/1367/1542 ns,
+separated by ~90-cycle alternating recovery regions. Same shrunk-cap + R=23 config.
+`wrdata cid.dat v(clk+) v(x1.net1)`, analyzed by `runs/cid_analyze.py`.
+
+| window        | f (MHz) | vctrl range   | note              |
+|---------------|---------|---------------|-------------------|
+| baseline lock | 600.57  | 0.774-0.811   | normal dither     |
+| RUN5          | 607.4   | 0.802-0.815   | coasts open-loop  |
+| RUN10         | 606.2   | 0.800-0.813   | coasts open-loop  |
+| RUN15         | 602.8   | 0.784-0.801   | coasts open-loop  |
+| end (relock)  | 600.41  | 0.772-0.813   | fully re-locked   |
+
+- **Loop never loses lock.** During a blind run the VCO coasts with only ~1%
+  frequency offset (~5% UI phase slip over 10 UI), then the PD pulls it back within
+  the ~90-cycle recovery region (back to 600.3-600.4 MHz).
+- **vctrl drifts <20 mV during runs, and UPWARD (toward 0.80 V) — the SAFE
+  direction, away from the 0.65 V dead-zone cliff.** Never approaches danger.
+- 15 UI > PRBS15 max run; 8b/10b max run is 5. Real coded data is well covered.
+
+**Conclusion: shrunk caps pass both jitter (§16b) and CID (§16e) — a legitimate CDR
+retune, not a cheat. No clamp/startup circuit is required for data-driven behavior.**
+Remaining open item is cold-start acquisition robustness (§16f), a distinct
+initial-condition question.
+
+## 16f. Watch item — cold-start acquisition is sensitive to the t=0 data seed
+
+Discovered while building the CID test: the FIRST CID attempt failed to acquire
+(vctrl stuck ~18 uV, VCO dead the whole run) purely because the PWL source had
+`vin+ = 1.8` at t=0 — the `.op` DC seed had the OPPOSITE data polarity to the
+`PULSE` sources (which sit at `vin+=0, vin-=1.8` before their first edge). Matching
+the PULSE seed (prepend a pre-edge so `vin+` starts at 0) made it lock normally.
+So the §14/§16 lock may depend on a favorable power-up data polarity. A real link
+can power up on either polarity -> **must verify the loop acquires from the opposite
+`.op` seed too** (test queued, §16g). If it fails, a cold-start aid (the §15 startup
+precharge, now for acquisition robustness rather than for real caps) may be
+warranted even with shrunk caps.
 
 ## 16d. Method note — the .op NaN spam is cosmetic
 
