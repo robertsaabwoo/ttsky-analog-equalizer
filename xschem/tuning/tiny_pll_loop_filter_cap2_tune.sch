@@ -19,7 +19,7 @@ C {devices/iopin.sym} 0 -160 2 0 {name=p1 lab=plus}
 C {devices/noconn.sym} 0 -220 0 1 {name=l2}
 C {devices/noconn.sym} 0 -200 0 1 {name=l3}
 C {sky130_fd_pr/nfet3_01v8.sym} -20 30 0 0 {name=MCAP
-W=1.1
+W=11
 L=2
 body=VNB
 nf=1

@@ -116,14 +116,14 @@ C {devices/ipin.sym} -50 370 0 1 {name=p5 lab=vin+
 }
 C {sky130_fd_pr/res_high_po.sym} -100 240 0 0 {name=R1
 W=1
-L=23
+L=23.5
 model=res_high_po
 spiceprefix=X
 mult=1}
 C {devices/lab_wire.sym} -120 240 0 0 {name=p8 sig_type=std_logic lab=VSS}
 C {sky130_fd_pr/res_high_po.sym} -310 240 0 0 {name=R2
 W=1
-L=23
+L=23.5
 model=res_high_po
 spiceprefix=X
 mult=1}

@@ -1244,3 +1244,78 @@ stimulus** before continuing to divide and conquer.
 
 Concretely: **verify the testbench's own numbers before tuning to them.** The
 symbol period, not the square-wave frequency, sets the CDR clock rate.
+
+
+# §15. Session 6 — real-cap acquisition fails; the root cause is architectural, not a tuning miss
+
+## 15a. The problem, stated precisely
+
+§14 locks the loop at 600.6 MHz **but only with the 10x-shrunk loop-filter caps**
+(§10 speed trick). With the **real production caps** (cap1 `L=6 W=4 mult=6`,
+cap2 `W=11 L=2`) the loop **does not acquire lock** from cold start:
+
+- At t=0 vctrl=0, there is no recovered clock, so the Alexander PD has nothing to
+  compare against and **parks `down` high** -> the charge pump net-*discharges*
+  the filter. vctrl briefly kicks to ~0.75 V then bleeds back down.
+- With shrunk caps vctrl moves fast enough to grab a clock and acquire before it
+  falls through the VCO's ~0.65 V dead-zone cliff. With real (10x bigger) caps
+  vctrl moves ~10x slower, drifts through the cliff first, the VCO dies, the clock
+  vanishes, the PD stays parked, and vctrl sticks at ~0.5 V for the whole run.
+
+An **idealized** test (force vctrl >= 0.72 V) makes the whole loop lock cleanly at
+600 MHz -> every block is individually healthy. **The only failure is acquisition:
+the transient path to lock, not any block.**
+
+## 15b. The source-follower clamp is dead (do not revisit)
+
+Plan tried: raise ring R to 23.5 to lift the lock point (~0.9 V) and widen the
+cliff->lock window, then hold vctrl up with an NFET source-follower clamp
+(gate from a Vdd resistor divider, source = vctrl). It **cannot thread the window**:
+
+| Rbot L | gate V | vctrl floor | result |
+|--------|--------|-------------|--------|
+| 11     | 1.194  | ~0.50 V     | dead (below cliff) |
+| 12     | 1.225  | **0.53 V**  | dead (below cliff) — run_A this session |
+| 13     | 1.253  | ~1.0 V      | loop acquires but overshoots ABOVE lock window |
+
+~28 mV of gate voltage flips the floor from 0.53 V to 1.0 V — **near-vertical
+transfer**, jumping straight over the 0.65-0.9 V target. In subthreshold the
+follower is a high-impedance node: it either doesn't hold or lets the loop
+overshoot. No manufacturable gate value lands vctrl in the window. Abandoned.
+
+## 15c. Root cause — a PLL was repurposed as a CDR, deleting frequency acquisition
+
+The blocks are from the TinyTapeout **PLL**, which acquires frequency with a
+**reference clock + divider + phase-FREQUENCY detector (PFD)** (`tiny_pll_pfd`,
+4 SR latches; `tiny_pll_divider`, 4-bit programmable). A PFD drives vctrl toward
+the correct frequency **from any start** — true frequency pull-in — so large
+(slow) loop caps are fine, even desirable (low jitter) in a PLL.
+
+We built a **CDR** by removing the reference/divider/PFD and dropping in an
+Alexander **bang-bang** phase detector. A bang-bang PD corrects **phase only —
+zero frequency pull-in.** It can only lock if the VCO already runs near 600 MHz.
+So:
+
+- The VCO is fine (600 MHz at vctrl~0.79 V). The caps only feed the loop filter.
+- The real caps are correctly sized for a loop that HAD a PFD. Removing the PFD
+  removed the mechanism that made slow caps OK. **Not a frequency limit; a missing
+  frequency-acquisition mechanism.**
+
+### Can we reuse the PLL's PFD + divider? No — there is no reference clock.
+
+The PFD needs an independent, accurate frequency source on `clk_ref`. Our ring
+oscillator is the `clk_vco` side (the thing being tuned — a loop can't lock to
+itself). The data stream `vin+` is only a **phase** reference (irregular edges ->
+no clean frequency). **Decision (user, session 6): the CDR is reference-less; there
+is no reference clock available.** The PFD path is therefore unusable and ruled out.
+
+## 15d. Chosen direction — validate the shrunk caps as the legitimate CDR design
+
+Reframe: a bang-bang CDR *wants* higher loop bandwidth (smaller caps) than a PLL.
+The shrunk caps may not be a "cheat" — they may be the correct CDR retune, since
+smaller caps -> higher bandwidth -> acquire before drifting into the dead zone,
+which is exactly what we see. The only legitimate objection to small caps is
+**jitter** (too much bandwidth tracks noise onto the recovered clock), and jitter
+has never been measured. Plan (user-directed, running overnight, single sims only,
+niced + nohup): measure jitter on the shrunk-cap lock; if acceptable, the shrunk
+caps ARE the design and no clamp/startup circuit is needed. See §16.
