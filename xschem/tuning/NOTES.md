@@ -1398,6 +1398,21 @@ can power up on either polarity -> **must verify the loop acquires from the oppo
 precharge, now for acquisition robustness rather than for real caps) may be
 warranted even with shrunk caps.
 
+## 16g. Polarity robustness test — NOT RUN (VM crash), sims paused
+
+The opposite-`.op`-seed acquisition test (`pol.spice`: swap the two PULSE initial
+values so `vin+` starts HIGH, otherwise identical to §16b) was launched but the VM
+crashed mid-run and it produced no output. **User directive after the crash: stop
+running the heavy CDR sims on this VM.** So §16g is left OPEN and is the FIRST thing
+to check when a run environment is available:
+  - Expect PASS -> shrunk caps fully validated on cold-start.
+  - If FAIL -> the loop only acquires for a favorable power-up polarity; add the
+    §15 startup precharge as an acquisition aid (not for real caps, but for
+    polarity-independent cold start).
+Netlist is ready at `runs/pol.spice` (regenerable from schematics + the swap).
+Each CDR tran is ~8-10 min single-threaded and is heavy for this VM: run ONE at a
+time, `nice`d, and not while doing other work.
+
 ## 16d. Method note — the .op NaN spam is cosmetic
 
 The batch log prints hundreds of `lintnoi/llambda/... <<NAN, error=7>>` lines. That
