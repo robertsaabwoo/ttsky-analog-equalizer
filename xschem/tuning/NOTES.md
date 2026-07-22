@@ -1319,3 +1319,48 @@ which is exactly what we see. The only legitimate objection to small caps is
 has never been measured. Plan (user-directed, running overnight, single sims only,
 niced + nohup): measure jitter on the shrunk-cap lock; if acceptable, the shrunk
 caps ARE the design and no clamp/startup circuit is needed. See §16.
+
+
+# §16. Session 6 (cont.) — jitter on the shrunk-cap lock is small; shrunk caps look legitimate
+
+## 16a. Setup
+
+Branch `cdr-shrunk-cap-jitter`. Config: shrunk caps (cap1 `L=0.6 W=4 mult=6`,
+cap2 `W=1.1 L=2`) + ring R=23 (the §14 600.6 MHz lock point). `tran 20p 2000n`,
+real production loop filter NOT used (this branch is the shrunk-cap validation).
+Jitter extracted in python (`runs/analyze_jitter.py`, pure stdlib) from a
+`wrdata` dump of `v(clk+)`, over the locked window 1200-2000 ns, rising crossings
+through 0.9 V with linear interpolation.
+
+## 16b. Result — locks dead-on, jitter is small
+
+- vctrl settles at **0.792 V**, clk+ swings rail-rail (pp 1.877 V), `down`
+  dithers at 1.275 V avg (healthy bang-bang, not parked).
+- Frequency **600.616 MHz** (+0.003% vs 600.6 target) over 479 periods.
+- **RMS period jitter 11.27 ps = 0.68% UI.**
+- **pk-pk period jitter 41.12 ps = 2.47% UI.**
+- Periods cluster at ~1645 and ~1686 ps (+-20 ps around 1665 ps mean) — the
+  classic bang-bang two-state limit-cycle dither, not numerical noise. Numerical
+  floor here is ~0.1 ps (reltol 1e-3 -> ~1.8 mV / ~18 mV·ps^-1 slew).
+
+**Interpretation:** a bang-bang CDR wants higher loop bandwidth (smaller caps)
+than a PLL; the shrunk caps give clean acquisition AND only ~0.7% UI RMS hunting
+jitter. On this stimulus the shrunk caps are a legitimate CDR retune, not a cheat.
+
+## 16c. The one caveat that can still break this — CID (consecutive identical digits)
+
+The testbench data `V2 vin+ = PULSE(...1.67n 3.33n)` is a **0101 clock pattern —
+every symbol has a transition.** That is the optimistic case for a CDR. Real data
+(PRBS) has **runs of no transitions**; during a run the bang-bang PD gets no phase
+info and the VCO runs **open-loop**, so vctrl/phase drift. Crucially, **smaller
+caps drift MORE per cycle** (less stored charge, higher sensitivity), so CID could
+hurt the shrunk-cap design specifically — exactly what the 0101 jitter number does
+NOT capture. This is the decisive remaining test: stress with a data run of K
+identical symbols and measure recovered-clock phase drift. See §16d.
+
+## 16d. Method note — the .op NaN spam is cosmetic
+
+The batch log prints hundreds of `lintnoi/llambda/... <<NAN, error=7>>` lines. That
+is ngspice's `.op` operating-point report choking on unfilled noise-model params;
+it does NOT affect the tran run (exit 0, tran completes, meas + wrdata all valid).
+Ignore it, or drop the `.op` line to silence it.
