@@ -1648,3 +1648,87 @@ devices rather than an `.ic`.
 - Older deferred items unchanged: proper differential slicer for the variant-E
   clkraw- inversion (§13f); d_latch ~5 % CML/inverter margin (§12a); duty-cycle
   spend (§14d).
+
+# §18. Session 7 (cont.) — PVT test suite, BUILT BUT NOT RUN
+
+`xschem/tuning/pvt/` holds a complete, resumable PVT suite for the §17 precharge
+cell and the loop around it. Decks are **generated but not executed** — see
+`pvt/README.md` for the full rationale, the pass criteria and the run cost.
+
+    ./gen_pvt.py        # netlist the schematics + write all 63 decks
+    ./run_pvt.sh T0     # one tier at a time, guarded and resumable
+    ./collect_pvt.py T0 # table with PASS/FAIL
+
+## 18a. Why three tiers, and what each one can prove
+
+The §17 cell has two properties that age differently over PVT, and the split
+matters:
+
+- the **hold level** is `Vgs` of the M5-replica diode, so it is *designed* to track
+  the dead-zone cliff. T1 tests whether that tracking is real.
+- **`t_rel`** is an `R*C` (poly resistor x MOS gate cap). Nothing makes it track
+  anything; it only has to stay in a window. T1b (RC corners) is what can break it.
+
+And a third failure mode belongs to neither: the VCO may simply not reach 600 MHz
+at a corner. **T0 exists to separate that from a precharge failure**, so a red T2 is
+diagnosable rather than a guess.
+
+| tier | what | decks | cost | verdict means |
+|---|---|---|---|---|
+| T0 | ring open-loop `f(vctrl)` curve | 11 | ~12 min | where the cliff is; is 600.6 MHz reachable |
+| T1 | cell alone, real supply ramp, **no `.ic` at all** | 45 | ~8 min | does the cell self-start and land above the cliff |
+| T2 | full loop, bad polarity | 7 | ~2 h | does the CDR actually acquire |
+
+T2's verdict string always reports whether the *cell* seeded (`cell OK` /
+`CELL DID NOT SEED`) separately from whether the *loop* locked, and a railed vctrl
+is called out explicitly as "VCO tuning range exhausted, not a precharge failure".
+
+## 18b. Corner axes — MOS and RC are independent in sky130
+
+`.lib ss` moves only the transistors; `.lib hh`/`ll` move only R and C. The stock
+`.lib` sections cannot express "slow transistors AND high resistors", so `gen_pvt.py`
+emits the underlying `.include` lines directly and combines the two axes freely.
+This is necessary here precisely because the bias level is a MOSFET threshold while
+the release time is an RC.
+
+## 18c. Baseline already measured (tt / 27 C / 1.8 V)
+
+Two smoke runs were executed to validate the harness end to end:
+
+```
+T0_tt_typ_27C_1p80   PASS   cliff 0.70 V, f(0.79)=602 MHz
+T1_tt_typ_27C_1p80   PASS   nbias 0.801, seed 0.801, release 149 ns
+```
+
+T1 reproduces the hand-built §17d deck exactly (0.801 V / 149 ns), which is what
+validates the generator.
+
+**The T0 curve is the interesting one:**
+
+```
+vctrl  0.60   0.65   0.70   0.75   0.79   0.85   0.90   1.00   1.20   1.40
+f MHz     -      -    514    571    602    609    610    615    619    621
+```
+
+The VCO tuning range is **narrow — 514 to 621 MHz** — and flattens hard above
+0.9 V. The 600.6 MHz target sits at vctrl ~0.785 V on the steep part with only
+~20 MHz of headroom above it. **That headroom is the thing to watch at ss/125 C.**
+If the curve drops enough that 600.6 MHz falls off the top, the loop cannot lock at
+that corner for reasons unrelated to the precharge, and the fix would be the ring
+resistor (the §14 knob), not this cell. Cross-check any T2 failure against the T0
+curve for the same corner before touching the cell.
+
+## 18d. Two harness bugs found and fixed while building this
+
+- **xschem netlisting silently failed (rc=1, no diagnostic) when driven from a
+  subdirectory.** `subprocess` sets the child's real cwd but leaves the inherited
+  `PWD` env var pointing at the parent, and xschem's Tcl layer trusts `PWD`.
+  Fix: stamp `PWD` explicitly in the child env. Worth remembering — it fails
+  quietly and looks like a broken schematic.
+- **A ring oscillator started from `uic` never oscillates** (all nodes at 0 is
+  exactly its metastable DC point). T0 decks kick one node with `.ic v(vo+)=VDD`
+  so every corner starts identically.
+
+Also: `str(1.80)` is `"1.8"`, which produced deck names `1p8` in one grid and
+`1p80` in another, so `--only` matched nothing. All voltage tags now go through a
+single `vtag()` formatter.
