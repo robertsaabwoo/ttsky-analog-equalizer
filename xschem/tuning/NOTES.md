@@ -1480,3 +1480,85 @@ The batch log prints hundreds of `lintnoi/llambda/... <<NAN, error=7>>` lines. T
 is ngspice's `.op` operating-point report choking on unfilled noise-model params;
 it does NOT affect the tran run (exit 0, tran completes, meas + wrdata all valid).
 Ignore it, or drop the `.op` line to silence it.
+
+# §17. Session 7 — the real startup precharge circuit (replaces the §16h `.ic`)
+
+§16h proved the *concept* with `.ic v(x1.net1)=0.79`. That is not a circuit. This
+section builds the actual cell, `vctrl_precharge_tune`, and wires it onto vctrl.
+
+## 17a. Requirements (from §16g/h)
+
+1. At power-up, force vctrl above the ~0.65 V VCO dead-zone cliff so the ring is
+   already oscillating near 600 MHz before the bang-bang loop has to do anything.
+2. Then **get completely out of the way**. This is the lesson of the dead §15
+   source-follower clamp: a device that stays connected fights the locked loop and
+   there is no manufacturable landing window. The fix must be a *switch*, released
+   after acquisition, whose gate then sits hard at 0 V.
+3. Be self-starting — it must fire off the supply ramp alone, with no external
+   enable pin and no reference clock (there isn't one).
+
+## 17b. Topology — POR one-shot + replica-biased switch (9 devices)
+
+```
+  VDD --[R1 686k]--+-- nrc --|>o-- pre --|>o-- preb
+                   |         INV_A       INV_B      |
+                 MCPOR                              |
+                (8x8 cap)                       MBP (pfet source, gate=preb)
+                   |                                |
+                  VSS                             nbias --+-- MBD (diode nfet, 6/0.15)
+                                                    |      |
+                                            MSW (8/0.6) --VSS
+                                             gate=pre
+                                                    |
+                                                  vctrl
+```
+
+- **R1 + MCPOR** — RC power-on ramp. `nrc` starts at 0 because the cap really is
+  discharged at power-up, and charges toward VDD. This sets the hold time.
+- **INV_A / INV_B** — turn the slow ramp into `pre` (HIGH during the hold, falls
+  when nrc crosses the inverter trip) and `preb` (its complement).
+- **MBP + MBD** — an enabled current source into a diode-connected NMOS. The seed
+  voltage is `nbias = Vgs(MBD)`. **MBD is a scaled replica of the ring tail M5**
+  (same device, same L=0.15), so the seed is automatically "one overdrive above an
+  NMOS threshold" — i.e. it *tracks the dead-zone cliff over PVT* rather than being
+  a hard-coded 0.79 V. That is the whole reason to use a diode instead of a
+  resistor divider.
+- **MSW** — the switch. Gate = `pre`, so it opens *before* the bias branch collapses
+  (INV_B adds a stage of delay), giving a glitch-free release, and afterwards its
+  gate is at 0 V so the cell is electrically absent.
+
+## 17c. Standalone cell results (light sims, all guarded)
+
+`runs/pre_cell_tb2.spice`, loop filter modelled as C2=19 f, R=86 k, C1=124 f plus
+60 fF of ring gate load:
+
+| quantity | value | note |
+|---|---|---|
+| `nbias` hold | **0.788 V** | target was 0.79 (MBD W trimmed 4.5 -> 6) |
+| release `t_rel` | **123 ns** | ~74 UI — VCO alive long before release |
+| hold current | 126 uA for 123 ns | ~28 pJ total, then zero |
+| post-release leak into vctrl | **~1 fA** | 2.9 uV droop over 600 ns |
+
+**Charge-pump ripple stress** — a +-20 uA square current source slammed on vctrl
+during the hold (emulating the bang-bang CP fighting the clamp): vctrl swings
+0.712 .. 0.888 V, i.e. the hold impedance is ~4.4 k and **vctrl never approaches
+the 0.65 V cliff**. The clamp is stiff enough to win against the CP. Without it the
+same current would walk vctrl 167 mV per half-UI.
+
+## 17d. The important one — it self-starts from a cold supply ramp
+
+`runs/pre_cell_ramp.spice`: `V1 VDD 0 PWL(0 0 50n 1.8)`, `tran ... uic`, and
+**no `.ic` anywhere in the deck**. Every node starts at 0, exactly like a real
+power-up.
+
+```
+vdd_50  = 1.800   (supply up at 50 ns)
+nb_h    = 0.8014  (nbias, at 80 ns)
+vc_h    = 0.8010  (vctrl held, at 80 ns)
+vc_h2   = 0.8015  (still held, at 120 ns)
+t_rel   = 148.7n  (release)
+vc_end  = 0.7756  (at 400 ns; ~25 mV of switch charge injection, harmless)
+```
+
+So the POR fires naturally off the supply ramp — no initial condition, no enable
+pin, no reference. This is the property `.ic v(vctrl)=0.79` could never demonstrate.
