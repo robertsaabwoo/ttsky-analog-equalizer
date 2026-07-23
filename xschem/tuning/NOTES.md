@@ -1562,3 +1562,42 @@ vc_end  = 0.7756  (at 400 ns; ~25 mV of switch charge injection, harmless)
 
 So the POR fires naturally off the supply ramp — no initial condition, no enable
 pin, no reference. This is the property `.ic v(vctrl)=0.79` could never demonstrate.
+
+## 17e. In-circuit validation — the real cell fixes the bad polarity (PASS)
+
+`runs/pre_pol.spice`: the exact §16g failing case (power-up data polarity swapped
+so `vin+` starts HIGH), with the real `vctrl_precharge_tune` cell on vctrl and
+**no seed on vctrl at all**. The only initial condition in the deck is
+`.ic v(x1.x20.nrc)=0` — the POR cap is discharged at power-up, which is physically
+true and is the one fiction `.op` introduces (with `.op` alone a capacitor is an
+open, so nrc would solve to VDD and the one-shot could never fire). Run under
+`safe_ngspice.sh` (memcap 2.5 G, 900 s, floor 1.5 G), exit rc=0, RSS ~145 MB.
+
+```
+t_rel   = 126.5 ns   precharge released
+h_vctrl = 0.8032     vctrl during the hold  (60-110 ns)   <- clamp holding in-circuit
+e_vctrl = 0.7922     just after release     (200-300 ns)  <- loop has taken over
+m_vctrl = 0.7919     mid run                (600-700 ns)
+l_vctrl = 0.7918     late                   (1100-1200 ns) <- locked, holding
+l_cp_pp = 1.8759     clk+ rail-to-rail
+nb_end  = 0.2770     nbias decayed after release (bias branch off, as designed)
+period  = (c660-c600)/60 = 1.6649 ns  ->  600.631 MHz   (+0.005 % vs 600.600)
+```
+
+Side-by-side on the *same* failing polarity:
+
+| case | vctrl | clk+ pp | result |
+|---|---|---|---|
+| §16g bare loop | 18 uV | 6 mV | **never acquires**, VCO dead |
+| §16h `.ic v(vctrl)=0.79` | 0.7921 | 1.875 V | 600.68 MHz (concept only) |
+| §17 **real cell** | 0.7918 | 1.876 V | **600.631 MHz** |
+
+The real circuit matches the artificial `.ic`, and in fact lands closer to the
+good-polarity §16b lock (600.616 MHz) than the `.ic` did.
+
+Note the sequence in `h_vctrl -> e_vctrl`: the cell seeds vctrl at 0.803 V, then on
+release the loop pulls it to *its own* lock point 0.792 V and holds there. That is
+the intended division of labour — the precharge only has to get the VCO alive and
+in the neighbourhood; the bang-bang loop does the rest. It also confirms the cell
+is not setting the operating point (the §15 clamp failure mode): 0.803 -> 0.792
+means the loop, not the clamp, wins after release.
