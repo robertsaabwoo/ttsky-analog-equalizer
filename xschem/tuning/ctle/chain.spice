@@ -1,0 +1,53 @@
+* Interface check: does the retuned CTLE actually drive the stages that follow it?
+*   PRBS7 -> 500ohm/1pF channel -> CTLE_tune -> { LA_Limiter , D2S_amp }
+* The three subckts are netlisted straight out of xschem via subckt_src.sch, so
+* this exercises the real schematics, not a hand-copy.
+.lib /home/ttuser/pdk/sky130A/libs.tech/ngspice/sky130.lib.spice tt
+.include chain_blocks.inc
+.include prbs.inc
+
+.param vcm=0.9
+.param vb=0.9
+.param rch=500 cch=1p
+.param amp=0.2
+
+VDD  VDD 0 1.8
+VSS  VSS 0 0
+Vb   vbias 0 'vb'
+
+Esp  srcp 0 vol='vcm + amp*0.5*(v(dsrc)-0.5)'
+Esm  srcm 0 vol='vcm - amp*0.5*(v(dsrc)-0.5)'
+Rchp srcp inp 'rch'
+Rchm srcm inm 'rch'
+Cchp inp 0 'cch'
+Cchm inm 0 'cch'
+
+x1 coutp coutm inp inm VDD VSS vbias CTLE_tune
+
+* LA_Limiter: PMOS input pair, resistive loads to VSS
+x2 vbias coutp coutm VDD VSS laoutm laoutp LA_Limiter
+Cla1 laoutp 0 20f
+Cla2 laoutm 0 20f
+
+* D2S_amp: NMOS pair with a PMOS mirror, single-ended out
+x3 vbias coutm coutp d2sout VDD VSS D2S_amp
+Cd2s d2sout 0 20f
+
+.options method=gear reltol=1e-4 abstol=1e-13 vntol=1e-7
+
+.control
+  op
+  print v(coutp) v(coutm) v(laoutp) v(laoutm) v(d2sout)
+  print v(x2.net1) v(x3.net1) v(x3.net2)
+  tran 10p 211.5n 0 20p
+  linearize
+  let vin_d  = v(inp)-v(inm)
+  let ctle_d = v(coutp)-v(coutm)
+  let la_d   = v(laoutp)-v(laoutm)
+  let d2s_s  = v(d2sout)
+  wrdata tmp.dat vin_d ctle_d la_d d2s_s
+  shell echo "#EYE chain 1pF channel"
+  shell cat tmp.dat
+  shell rm -f tmp.dat
+.endc
+.end

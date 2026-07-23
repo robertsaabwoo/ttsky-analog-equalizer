@@ -1,0 +1,70 @@
+* CTLE boost ladder — one CTLE sizing evaluated against three channels at once.
+* Three RC channels (500 ohm x 1p/2p/4p -> poles at 318/159/80 MHz) hang off the
+* same AC source; each drives its own copy of the CTLE, and all copies share the
+* swept .param values.  So every sweep point yields the combined channel+CTLE
+* response for a mild, a medium and a lossy channel simultaneously.
+.lib /home/ttuser/pdk/sky130A/libs.tech/ngspice/sky130.lib.spice tt
+.include ctle_p2.inc
+
+.param vcm=0.9
+.param vb=0.9
+.param cload=50f
+.param rch=500
+
+VDD  VDD 0 1.8
+VSS  VSS 0 0
+Vb   vbias 0 'vb'
+
+Vsp  srcp 0 dc 'vcm' ac 0.5 0
+Vsm  srcm 0 dc 'vcm' ac 0.5 180
+
+Rap srcp inap 'rch'
+Ram srcm inam 'rch'
+Cap inap 0 1p
+Cam inam 0 1p
+xa aoutp aoutm inap inam VDD VSS vbias ctle_p2
+Cap2 aoutp 0 'cload'
+Cam2 aoutm 0 'cload'
+
+Rbp srcp inbp 'rch'
+Rbm srcm inbm 'rch'
+Cbp inbp 0 2p
+Cbm inbm 0 2p
+xb boutp boutm inbp inbm VDD VSS vbias ctle_p2
+Cbp2 boutp 0 'cload'
+Cbm2 boutm 0 'cload'
+
+Rcp srcp incp 'rch'
+Rcm srcm incm 'rch'
+Ccp incp 0 4p
+Ccm incm 0 4p
+xc coutp coutm incp incm VDD VSS vbias ctle_p2
+Ccp2 coutp 0 'cload'
+Ccm2 coutm 0 'cload'
+
+.options method=gear reltol=1e-4 abstol=1e-13 vntol=1e-7
+
+.control
+  foreach lld 16 20
+    foreach ldg 1.0 1.5 2.2 3.0 4.0 5.0
+      foreach wc 15 18 21 24
+        alterparam Lload = $lld
+        alterparam Ldeg  = $ldg
+        alterparam Wcap  = $wc
+        reset
+        ac dec 60 1e5 1e10
+        let ga = db(v(aoutp)-v(aoutm))
+        let ia = db(v(inap)-v(inam))
+        let gb = db(v(boutp)-v(boutm))
+        let ib = db(v(inbp)-v(inbm))
+        let gc = db(v(coutp)-v(coutm))
+        let ic = db(v(incp)-v(incm))
+        wrdata tmp.dat ga ia gb ib gc ic
+        shell echo "#PT Lload $lld Ldeg $ldg Wcap $wc"
+        shell cat tmp.dat
+      end
+    end
+  end
+  shell rm -f tmp.dat
+.endc
+.end

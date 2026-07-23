@@ -109,6 +109,15 @@ bare supply ramp with no `.ic` anywhere. Tightest margin is **31 mV at ff/−40 
 
 ## 6. For the CTLE work specifically
 
+**Session 8 did this — read `ctle/NOTES_CTLE.md` (§C1-C14) first.** Short version:
+`CTLE.sch` had no peaking at all (its degeneration zero landed on top of its own
+output pole), it is retuned in the sandbox copy `ctle/CTLE_tune.sch`, and the
+retune passes 27 PVT corners. `CTLE.sch` itself is untouched pending the channel
+question in §C14. The two things that will bite whoever picks this up:
+the existing CTLE testbenches drive the input pair 8.5 dB into compression, and
+`LA_Limiter.sch` cannot be cascaded behind the CTLE at all (PMOS pair, wrong
+input CM, plus mismatched load resistors).
+
 Existing files: `xschem/CTLE.sch`, `CTLE.sym`, `CTLE_testbench.sch`,
 `CTLE_WITH_LATCH.sch`. Untracked/WIP at the time of writing: `LA_Limiter.sch`,
 `TSPC_Latch.sch`, `inverter_buffer.sch`, `tiny_pll*.sch`, plus a `mag/` and

@@ -18,27 +18,29 @@ SKIP = 6          # settling bits ignored at the start
 NPHASE = 200
 
 
-def read_block(path, tag="#EYE"):
-    """Collect the wrdata rows.  ngspice's own stdout and the `shell cat` child
-    are buffered independently, so the #EYE marker can land after the data it
-    labels; we therefore just take every numeric wrdata row in the file."""
-    rows = []
+def read_blocks(path, tag="#EYE"):
+    """Yield (label, rows) for each tagged wrdata block; a file with no tag at
+    all yields one (None, rows).  The tag must be emitted with `shell echo`, not
+    ngspice's builtin `echo`: ngspice's own stdout and a `shell` child are
+    buffered separately, so a builtin echo can land after the data it labels."""
+    out, key, rows = [], None, []
     for line in open(path):
         if line.startswith(tag):
+            if rows:
+                out.append((key, rows))
+            key, rows = line[len(tag):].strip(), []
             continue
         p = line.split()
         if len(p) < 2 or len(p) % 2:
-            if rows:
-                break
             continue
         try:
             vals = [float(x) for x in p]
         except ValueError:
-            if rows:
-                break
             continue
         rows.append([vals[0]] + vals[1::2])
-    return rows
+    if rows:
+        out.append((key, rows))
+    return out
 
 
 def sample(rows, t, col):
@@ -88,8 +90,8 @@ def eye(rows, col, bits, ui):
             best = (ph, h)
     open_frac = sum(1 for _, h in heights if h > 0) / NPHASE
     ph = best[0]
-    ones = [sgn * sample(rows, (i + ph) * ui, col) for i in range(SKIP, len(bits)) if bits[i]]
-    zeros = [sgn * sample(rows, (i + ph) * ui, col) for i in range(SKIP, len(bits)) if not bits[i]]
+    ones = [sample(rows, (i + ph) * ui, col) for i in range(SKIP, len(bits)) if bits[i]]
+    zeros = [sample(rows, (i + ph) * ui, col) for i in range(SKIP, len(bits)) if not bits[i]]
     return ph, best[1], open_frac, sum(ones) / len(ones), sum(zeros) / len(zeros), sgn
 
 
@@ -99,26 +101,28 @@ def main():
     txt = open("prbs_bits.txt").read().split()
     bits = [int(c) for c in txt[0]]
     ui = float(txt[1])
-    rows = read_block(log)
-    if not rows:
-        print("no #EYE block found")
+    allb = read_blocks(log)
+    if not allb:
+        print("no data rows found")
         return
-    ncol = len(rows[0]) - 1
-    if not names:
-        names = [f"col{i}" for i in range(1, ncol + 1)]
-    print(f"{len(rows)} samples, {rows[-1][0]*1e9:.1f} ns, UI = {ui*1e12:.0f} ps, "
-          f"{len(bits)} bits ({SKIP} skipped)")
+    print(f"UI = {ui*1e12:.0f} ps, {len(bits)} bits ({SKIP} skipped)")
+    for key, rows in allb:
+        ncol = len(rows[0]) - 1
+        nm = names if len(names) == ncol else [f"col{i}" for i in range(1, ncol + 1)]
+        print()
+        print(f"== {key or log}   ({len(rows)} samples, {rows[-1][0]*1e9:.1f} ns)")
+        print(f"{'signal':<14}{'eye height':>12}{'eye width':>12}{'best phase':>12}"
+              f"{'V @ bit 1':>11}{'V @ bit 0':>11}{'swing':>9}")
+        print("-" * 80)
+        for c in range(1, ncol + 1):
+            ph, h, w, m1, m0, sgn = eye(rows, c, bits, ui)
+            inv = " (inv)" if sgn < 0 else ""
+            print(f"{nm[c-1]:<14}{h*1e3:9.1f} mV{w:9.3f} UI{ph:12.3f}"
+                  f"{m1*1e3:10.1f}m{m0*1e3:10.1f}m{abs(m1-m0)*1e3:8.1f}m{inv}")
     print()
-    print(f"{'signal':<14}{'eye height':>12}{'eye width':>12}{'best phase':>12}"
-          f"{'mean 1':>10}{'mean 0':>10}{'swing':>10}")
-    print("-" * 80)
-    for c in range(1, ncol + 1):
-        ph, h, w, m1, m0, sgn = eye(rows, c, bits, ui)
-        inv = " (inv)" if sgn < 0 else ""
-        print(f"{names[c-1]:<14}{h*1e3:9.1f} mV{w:9.3f} UI{ph:12.3f}"
-              f"{m1*1e3:9.1f}m{m0*1e3:9.1f}m{(m1-m0)*1e3:9.1f}m{inv}")
-    print()
-    print("eye height = min(1-samples) - max(0-samples) at the best sampling phase")
+    print("eye height = worst 1-sample vs worst 0-sample separation at the best phase")
+    print("V @ bit 1/0 = mean node voltage there; (inv) = the stage inverts, so a")
+    print("              logic 1 shows up as the LOWER voltage")
     print("eye width  = fraction of the UI over which that separation stays > 0")
 
 

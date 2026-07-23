@@ -1,0 +1,51 @@
+* Interface check: does the retuned CTLE actually drive the stages that follow it?
+*   PRBS7 -> 500ohm/1pF channel -> CTLE_tune -> { LA_Limiter , D2S_amp }
+* The three subckts are netlisted straight out of xschem via subckt_src.sch, so
+* this exercises the real schematics, not a hand-copy.
+.lib /home/ttuser/pdk/sky130A/libs.tech/ngspice/sky130.lib.spice tt
+.include chain_blocks.inc
+.include prbs.inc
+
+.param vcm=0.9
+.param vb=0.9
+.param rch=500 cch=1p
+.param amp=0.2
+
+VDD  VDD 0 1.8
+VSS  VSS 0 0
+Vb   vbias 0 'vb'
+
+Esp  srcp 0 vol='vcm'
+Esm  srcm 0 vol='vcm'
+Rchp srcp inp 'rch'
+Rchm srcm inm 'rch'
+Cchp inp 0 'cch'
+Cchm inm 0 'cch'
+
+x1 coutp coutm inp inm VDD VSS vbias CTLE_tune
+
+* LA_Limiter: PMOS input pair, resistive loads to VSS
+x2 vbias coutp coutm VDD VSS laoutm laoutp LA_Limiter
+Cla1 laoutp 0 20f
+Cla2 laoutm 0 20f
+
+* D2S_amp: NMOS pair with a PMOS mirror, single-ended out
+x3 vbias coutm coutp d2sout VDD VSS D2S_amp
+Cd2s d2sout 0 20f
+
+.options method=gear reltol=1e-4 abstol=1e-13 vntol=1e-7
+
+.control
+  op
+  print v(coutp) v(coutm) v(laoutp) v(laoutm) v(d2sout)
+  print v(x2.net1) v(x3.net1) v(x3.net2)
+  tran 10p 40n 0 20p
+  echo "--- settled values after a 40 ns transient with a static balanced input ---"
+  meas tran cp    AVG v(coutp)   FROM=35n TO=40n
+  meas tran cm    AVG v(coutm)   FROM=35n TO=40n
+  meas tran lap   AVG v(laoutp)  FROM=35n TO=40n
+  meas tran lam   AVG v(laoutm)  FROM=35n TO=40n
+  meas tran d2s   AVG v(d2sout)  FROM=35n TO=40n
+  meas tran lanet AVG v(x2.net1) FROM=35n TO=40n
+.endc
+.end

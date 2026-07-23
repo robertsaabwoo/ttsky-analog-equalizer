@@ -8,3 +8,5 @@ CTLE_tune_tb.spice
 prbs.inc
 prbs_bits.txt
 sw1_
+subckt_src.spice
+chain_blocks.inc

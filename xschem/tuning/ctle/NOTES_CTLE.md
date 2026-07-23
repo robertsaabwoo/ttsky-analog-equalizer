@@ -203,7 +203,103 @@ that channel costs just 2.8 dB at Nyquist. **How much this retune matters
 depends entirely on what the real channel is** — which is the open question in
 C11.
 
-## C10. Files
+## C10. The boost ladder — and the hard limit of one CTLE stage
+
+`ladder.spice` + `ladderreport.py`: 48 sizings, each evaluated against all three
+channels in the same AC run (three channels, three CTLE copies sharing the swept
+`.param`s). `eye3.spice` then measures nine of those sizings in eyes.
+
+Eye height / eye width at 600.6 Mb/s, 200 mVpp in, Lload = 20 throughout:
+
+| Ldeg / Wcap | 1 pF channel | 2 pF channel | 4 pF channel |
+|---|---|---|---|
+| **1.5 / 18** (chosen) | **651 mV / 0.675 UI** | 521 / 0.560 | 157 / 0.255 |
+| 1.5 / 21 | 651 / 0.655 | 551 / 0.545 | 211 / 0.305 |
+| 1.5 / 24 | 652 / 0.635 | **560** / 0.515 | 259 / 0.335 |
+| 3.0 / 18 | 490 / 0.670 | 475 / 0.560 | 226 / 0.390 |
+| **3.0 / 21** | 491 / 0.640 | 488 / 0.515 | **264** / 0.400 |
+| 3.0 / 24 | 493 / 0.610 | 477 / 0.470 | 256 / 0.355 |
+| 5.0 / 18 | 369 / 0.655 | 370 / 0.525 | 234 / **0.435** |
+| 5.0 / 21 | 371 / 0.615 | 373 / 0.470 | 210 / 0.380 |
+| 5.0 / 24 | 377 / 0.575 | 377 / 0.415 | 177 / 0.310 |
+
+Two things fall out of this table.
+
+**There is a hard ceiling.** The 4 pF channel loses 11.8 dB at Nyquist and this
+topology can supply at most ~5-6 dB of boost, so the best *ripple* achievable on
+it is ~4 dB — the channel cannot be flattened by one stage, only softened. The
+reachable envelope is roughly: **a channel losing up to ~6 dB at Nyquist can be
+equalized flat; beyond that this CTLE improves the eye a lot but does not undo
+the channel.** Undoing more needs a second stage, not a bigger degeneration cap.
+
+**The ranking inverts with channel loss**, so the sizing is a real choice:
+
+- **mild channel → `Ldeg 1.5 / Wcap 18`** — tallest *and* widest eye on 1 pF, and
+  still best-in-class on 2 pF. This is what `CTLE_tune.sch` holds, because the
+  1 pF/500 Ω channel is the only channel actually specified anywhere in the repo.
+- **unknown channel → `Ldeg 3.0 / Wcap 21`** is the minimax pick: within ~25 % of
+  the best eye on every one of the three channels. It costs 160 mV of eye height
+  on the mild channel to buy 107 mV on the lossy one.
+- `Ldeg 5.0` only wins on eye *width* on the lossiest channel, and gives up a
+  third of the height everywhere. Not worth it unless the channel is known bad.
+
+Switching between these is one resistor value and one cap value. If the channel
+is still unknown at tape-out, making Rdeg switchable (a second degeneration leg
+gated by an NMOS off a spare `ui[]` pin) turns this table into a runtime knob —
+see C13.4.
+
+## C11. At 1 Gb/s the retune matters more, not less
+
+The existing testbenches run 1 Gb/s (`PULSE … 0.5n 1n`). Re-running the eye
+comparison at UI = 1 ns (`eye2_1g.spice`, Nyquist 500 MHz):
+
+| channel | as-drawn | **retuned** |
+|---|---|---|
+| 1 pF | 319 mV / 0.400 UI | **480 mV / 0.450 UI** |
+| 2 pF | 27 mV / 0.050 UI (closed) | **216 mV / 0.265 UI** |
+| 4 pF | closed | closed |
+
+So the retune is rate-robust: it is worth +50 % at 1 Gb/s on the mild channel and
+it is the difference between closed and open on the 2 pF one. Nothing about the
+choice of sizing changes if the rate turns out to be 1 Gb/s rather than 600 Mb/s
+— but note that at 1 Gb/s *no* sizing in the ladder flattens the 2 pF channel
+(best ripple ~4 dB), so 1 Gb/s over anything lossy would need a second stage.
+
+## C12. Chain check: D2S_amp is fine, LA_Limiter is dead as drawn
+
+`subckt_src.sch` netlists `CTLE_tune`, `LA_Limiter` and `D2S_amp` straight out of
+xschem; `chain.spice` drives the real subckts with the PRBS through the 1 pF
+channel. Eye at each node:
+
+| node | eye height | eye width | levels |
+|---|---|---|---|
+| channel out (CTLE in) | 183 mV | 0.785 UI | ±96 mV |
+| CTLE out (differential) | 651 mV | 0.800 UI | ±366 mV |
+| **LA_Limiter out** | **77 mV** | 0.730 UI | +32 / −56 mV |
+| D2S_amp out (single-ended) | 1348 mV | 0.445 UI | 0.30 V / 1.73 V |
+
+- **`D2S_amp` works well.** It takes the CTLE's differential output and hands
+  back a 1.43 V single-ended swing centred sensibly (balanced DC output settles
+  at 0.952 V). Its 0.445 UI eye width is the narrowest link in the chain, so it,
+  not the CTLE, is what limits timing margin downstream.
+- **`LA_Limiter` does not work behind this CTLE.** Two independent reasons,
+  both visible in the netlist and confirmed in simulation:
+  1. It is a **PMOS** input pair with its tail PMOS from VDD. With the CTLE's
+     1.265 V output common mode, its tail node settles at 1.784 V, leaving the
+     input pair Vsg = 0.52 V — below threshold. The pair is off and both outputs
+     sit at 5 and 9 mV, i.e. at VSS. A PMOS input stage wants an input CM around
+     0.6-0.8 V; the CTLE delivers 1.265 V. These two blocks cannot be
+     cascaded as drawn.
+  2. Its load resistors are **mismatched**: `XR3 W=1 L=4` on `vout+` against
+     `XR4 W=1 L=8` on `vout-` — a 2:1 asymmetry that would give a large static
+     offset even if the pair were biased correctly. Almost certainly a typo.
+
+  `LA_Limiter.sch` is untracked WIP with no testbench, so this is not a
+  regression — it is what you will hit the moment you try to use it. Either
+  rebuild it with an NMOS input pair (matching the CTLE's high output CM, as
+  `D2S_amp` already does), or level-shift between them.
+
+## C13. Files
 
 | file | what |
 |---|---|
@@ -216,8 +312,13 @@ C11.
 | `ac_corner.spice` → `ac_{tt,ss,ff}.spice` | 27 PVT corners |
 | `cmsens.spice` | input-common-mode sensitivity |
 | `dcxfer.spice` | large-signal differential transfer |
-| `gen_prbs.py`, `prbs.inc` | PRBS7 stimulus, 127 bits at 600.6 Mb/s |
+| `gen_prbs.py`, `prbs.inc` | PRBS7 stimulus, 127 bits at 600.6 Mb/s (regenerate for other rates) |
 | `eye.spice`, `eye2.spice` | eye transients (`eyemetrics.py` reads them) |
+| `eye2_1g.spice` | the same comparison at 1 Gb/s (regenerate `prbs.inc` with `ui=1n` first) |
+| `ladder.spice`, `ladderreport.py` | 48 sizings × 3 channels in one AC run |
+| `eye3.spice` | 9 sizings × 3 channels in eyes |
+| `subckt_src.sch` | netlist-source only: emits the `CTLE_tune` / `LA_Limiter` / `D2S_amp` subckts into `chain_blocks.inc` |
+| `chain.spice`, `chain_dc.spice` | CTLE → LA_Limiter / D2S_amp interface check |
 | `CTLE_tune.sch/.sym` | **the retuned schematic** |
 | `CTLE_tune_tb.sch` | GUI/CLI testbench for it; netlists and reproduces the deck numbers exactly (+10.31 dB DC, +2.35 dB boost, +9.78 dB at Nyquist) |
 
@@ -239,8 +340,15 @@ convention in `../HANDOFF.md` §6.
 - `let` vectors made after `op` live in the op plot; a following `ac` switches
   the current plot, and `print` then reports "vector … has zero length". Print
   before the next analysis.
+- **`.op` can return an asymmetric solution for a perfectly symmetric
+  differential pair.** In `chain.spice` the operating point reported
+  `v(coutp) = 1.423 V`, `v(coutm) = 1.098 V` — a fictitious 325 mV offset — while
+  the same circuit settles at 1.265 V on *both* outputs when you let a transient
+  relax into it (`chain_dc.spice`). The mean of the bogus pair is right, which is
+  what makes it easy to believe. If a differential DC number looks wrong, settle
+  it with a short `tran` + `meas … AVG` before trusting it.
 
-## C11. Open questions — these gate the next round
+## C14. Open questions — these gate the next round
 
 1. **What is the real channel?** The `R = 500 Ω / C = 1 pF` model is inherited
    from `CTLE_testbench.sch` and looks like a placeholder. C9 shows the retune is
@@ -248,6 +356,8 @@ convention in `../HANDOFF.md` §6.
    pattern generator through coax into a TT analog pad, the true channel is far
    milder than any of these and the CTLE is close to unnecessary; if it is a long
    FR4 trace, we should push for more boost than the +2.35 dB chosen here.
+   **C10 is the answer table** — pick the row that matches the channel; no
+   further simulation is needed to change the sizing, only the two numbers.
 2. **Confirm 600 Mb/s.** Everything above is at UI = 1.665 ns to match the CDR.
    The existing CTLE testbenches run 1 Gb/s (`PULSE … 0.5n 1n`) — stale, or a
    different intent?
@@ -256,6 +366,11 @@ convention in `../HANDOFF.md` §6.
    (AC-coupled input). Both need the pad-level plan.
 4. **Should the boost be made switchable?** Given (1) is unknown at tape-out, a
    digitally-selected Rdeg (a second degeneration leg gated by an NMOS switch off
-   one of the free `ui[]` pins) would let the boost be dialled after silicon. It
-   is a small addition and it converts an unknown into a knob. Not built — ask
-   first.
+   one of the free `ui[]` pins) would let the boost be dialled across the whole
+   C10 ladder after silicon. It is a small addition and it converts an unknown
+   into a knob. **Not built — this is a design change, not a retune, so it needs
+   your call.**
+5. **What follows the CTLE?** C12 says `D2S_amp` works and `LA_Limiter` cannot be
+   cascaded with this CTLE at all. If `LA_Limiter` is meant to be in the chain it
+   needs an NMOS input pair and matched loads; if it is abandoned WIP, say so and
+   it can be deleted.
