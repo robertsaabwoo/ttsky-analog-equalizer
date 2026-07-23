@@ -1601,3 +1601,50 @@ the intended division of labour — the precharge only has to get the VCO alive 
 in the neighbourhood; the bang-bang loop does the rest. It also confirms the cell
 is not setting the operating point (the §15 clamp failure mode): 0.803 -> 0.792
 means the loop, not the clamp, wins after release.
+
+## 17f. Regression — the precharge does not disturb the polarity that already worked
+
+`runs/pre_good.spice`: original (good) power-up polarity, same real cell, same
+`.ic v(x1.x20.nrc)=0`. Guarded run, exit rc=0.
+
+```
+t_rel   = 126.5 ns
+h_vctrl = 0.8009   (hold)
+e_vctrl = 0.8172   (200-300 ns; small post-release overshoot, settles out)
+m_vctrl = 0.7918   (600-700 ns)
+l_vctrl = 0.7921   (1100-1200 ns)
+l_cp_pp = 1.8758
+period  = 1.6645 ns -> 600.781 MHz
+```
+
+Full comparison of the locked state:
+
+| case | vctrl (late) | freq | verdict |
+|---|---|---|---|
+| §16b good polarity, no precharge | 0.7921 | 600.616 MHz | locks |
+| §17f good polarity, **with** precharge | 0.7921 | 600.781 MHz | **locks, no regression** |
+| §16g bad polarity, no precharge | 18 uV | — | **never acquires** |
+| §17e bad polarity, **with** precharge | 0.7918 | 600.631 MHz | **locks** |
+
+vctrl — the actual loop state variable — is identical to 4 digits with and without
+the precharge (0.7921). The 600.616 / 600.781 spread is measurement noise, not a
+frequency shift: the period is bimodal at 1645/1686 ps (the §16b bang-bang dither),
+so a 60-cycle average lands anywhere in a ~+-0.03 % band depending on the duty of
+the two dither states inside the window. Both are within 0.03 % of the 600.600 MHz
+data rate.
+
+**Conclusion: cold start is now polarity-independent.** The precharge rescues the
+polarity that used to fail outright and leaves the polarity that already worked
+untouched. Item 3 of the §16h "complete picture" is closed with real silicon-able
+devices rather than an `.ic`.
+
+### What is still open after §17
+
+- **PVT corners** on the cell: the hold level tracks NMOS Vth by construction (MBD
+  is an M5 replica), but `t_rel` is set by an RC of a poly resistor and a gate cap
+  and will move with process/temperature. It only has to be "long enough", and at
+  126 ns nominal there is ~75 UI of margin, but ss/ff should be checked.
+- The cell has never been run at anything but tt/27 C.
+- Older deferred items unchanged: proper differential slicer for the variant-E
+  clkraw- inversion (§13f); d_latch ~5 % CML/inverter margin (§12a); duty-cycle
+  spend (§14d).
