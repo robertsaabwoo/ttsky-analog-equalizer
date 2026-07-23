@@ -111,6 +111,12 @@ N 2890 500 2970 500 {
 lab=Vss}
 N 2970 490 2970 500 {
 lab=Vss}
+N 1850 250 2030 250 {
+lab=#net1}
+N 1550 230 1470 230 {
+lab=Vdd}
+N 1550 270 1470 270 {
+lab=Vss}
 C {tiny_pll_charge_pump.sym} 1840 -50 0 0 {name=x6}
 C {devices/lab_wire.sym} 1790 -280 0 0 {name=p14 sig_type=std_logic lab=Vdd
 }
@@ -193,3 +199,8 @@ C {devices/lab_wire.sym} 3350 800 0 0 {name=p74 sig_type=std_logic lab=Vdd
 C {devices/lab_wire.sym} 3350 820 0 0 {name=p75 sig_type=std_logic lab=Vss
 }
 C {devices/opin.sym} 3350 840 0 0 {name=p17 lab=rclk-}
+C {vctrl_precharge_tune.sym} 1700 250 0 0 {name=x20}
+C {devices/lab_wire.sym} 1470 230 0 0 {name=p80 sig_type=std_logic lab=Vdd
+}
+C {devices/lab_wire.sym} 1470 270 0 0 {name=p81 sig_type=std_logic lab=Vss
+}
