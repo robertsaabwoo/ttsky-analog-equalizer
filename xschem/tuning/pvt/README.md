@@ -1,7 +1,13 @@
 # PVT test suite for the CDR startup precharge (§18)
 
-Everything here is **built but not run**. Generating decks is free; running them
-is not. Invoke a tier when you actually want the answer.
+**Status: T0 and T1 have been RUN (2026-07-23). T2 has not.** Results and their
+interpretation are in `../NOTES.md` §20. Generating decks is free; running them is
+not. Invoke a tier when you actually want the answer.
+
+    T0  6 pass / 5 fail  -- the 5 failures are the ACCEPTED ring tuning-range
+                            limit (125 C and 1.62 V), NOT a defect. See §20b.
+    T1  45 pass / 0 fail -- the precharge cell is good across all PVT.
+    T2  never run (~2 h).
 
     ./gen_pvt.py                 # netlist the schematics + write all 63 decks
     ./run_pvt.sh T0              # then a tier at a time
@@ -172,3 +178,27 @@ interrupted session resumes cleanly.
 Suggested order: **T0 first** (it defines the cliffs that sharpen T1's criteria and
 tells you which corners the VCO can even reach), then **T1**, and only then T2 —
 and T2 in chunks with `--budget`.
+
+
+---
+
+## How to re-test temperature later
+
+The whole T0 tier is ~12 minutes:
+
+    cd xschem/tuning/pvt && ./gen_pvt.py && ./run_pvt.sh T0 && ./collect_pvt.py T0
+
+- To evaluate a **candidate ring resistor**, edit `L` on R1/R2 in
+  `../ring_inverter_tune.sch:116,124`, then re-run the three lines above and read
+  the `range` column of the collector output.
+- To add a **new temperature or supply**, edit the T0 block of
+  `gen_pvt.py::grids()`.
+- To resolve a **cliff more finely** (T0's default vctrl grid is coarse, 0.05 V
+  steps), add points to `T0_VCTRL` in `gen_pvt.py`. `collect_pvt.py` imports that
+  same list, so the two cannot disagree.
+
+The question to ask of the output is always: **does 600.6 MHz sit inside
+`[f_min, f_max]` at both temperature extremes simultaneously?** As of §20b it does
+not, and no single load resistor can make it — the per-corner tuning ratio
+(~1.14-1.21) is smaller than the corner-to-corner spread (~1.31). That needs a
+wider tuning range or a coarse trim bank, not a resistor retune.

@@ -1817,3 +1817,102 @@ plot `clkp`/`datap` rather than `clk+`/`vin+`.
 Locked vctrl dither is **~45 mV pk-pk** (`vctrl_ripp = 0.0450`), not "a few mV" as
 first stated. So 5 mV is not normal for vctrl either — on any node in this bench a
 ~5 mV reading means the VCO is dead, which makes the diagnosis unambiguous.
+
+# §20. Session 7 (cont.) — T0 + T1 PVT results (RUN). Temperature limit ACCEPTED.
+
+Both cheap tiers were executed. **T2 (full loop, ~2 h) was never run.**
+
+## 20a. T1 — the precharge cell: 45/45 PASS
+
+Every corner: MOS {tt,ss,ff,sf,fs} x T {-40,27,125} x VDD {1.62,1.80,1.98} x
+RC {typ,hh,ll}. Driven by a real supply ramp with **no `.ic` anywhere** — the cell
+self-starts from a cold supply at every corner.
+
+| quantity | min | max | spread |
+|---|---|---|---|
+| `nbias` seed | 0.693 V (sf/125C/1.80) | 0.908 V (fs/-40C/1.80) | 215 mV |
+| `t_rel` release | 136 ns (tt/ll/-40C) | 167 ns (ss/typ/-40C/1.62) | **±10 %** |
+
+Two things worth keeping:
+
+- **The M5-replica bias works.** The seed moves with threshold in the same
+  direction as the cliff, which is why all 45 clear it. Supply moves it ~+76 mV
+  over 1.62->1.98 V; the skew corners are the extremes (fs highest, sf lowest),
+  as expected since INV_A's trip point and the MBP/MBD strength ratio are both
+  p/n ratios.
+- **`t_rel` is far more stable than feared** — 136-167 ns across everything,
+  including the RC corners. Reason: `MCPOR` is a MOS gate cap, so the PDK's
+  `cap_high`/`cap_low` files do not touch it; only the poly resistor moves, giving
+  ~±14 % (tt: ll 140 ns vs hh 159 ns). The RC axis is therefore a much weaker
+  knob on this cell than the design intent assumed. Good, but it means `t_rel`
+  is essentially set by the resistor alone.
+
+**Tightest margin, and an honest caveat:** at ff/-40C/1.80 the seed is 0.782 V
+against a T0 cliff of 0.75 V — only **31 mV** of margin, which barely cleared the
+`cliff+0.03` criterion. The T0 sweep resolution is coarse there (dead at 0.70,
+alive at 0.75), so the true cliff is somewhere in 0.70-0.75 and the real margin is
+between 31 and 81 mV. If this corner ever matters, re-run T0 with a finer vctrl
+grid around 0.70-0.75 before trusting it.
+
+## 20b. T0 — VCO tuning range: 6 pass / 5 fail
+
+```
+                              cliff   f(0.79)   range          verdict
+T0_tt_typ_27C_1p80             0.70     602     514-621        PASS
+T0_tt_typ_27C_1p98             0.70     613     526-647        PASS
+T0_tt_typ_-40C_1p80            0.75     623     560-691        PASS
+T0_ss_typ_27C_1p80             0.75     571     524-608        PASS
+T0_ss_typ_-40C_1p80            0.79     557     557-675        PASS
+T0_ff_typ_27C_1p80             0.65     608     498-631        PASS
+T0_tt_typ_125C_1p80            0.65     533     474-546        FAIL  too slow
+T0_ss_typ_125C_1p80            0.70     525     479-536        FAIL  too slow
+T0_ff_typ_125C_1p80            0.65     540     495-552        FAIL  too slow
+T0_ff_typ_-40C_1p80            0.75     654     621-700        FAIL  too fast
+T0_tt_typ_27C_1p62             0.70     588     502-592        FAIL  too slow
+```
+
+Cross-check that validates the whole T0 method: at tt/27C/1.8 V the open-loop ring
+gives 602 MHz at vctrl=0.79, and the closed loop locks at 600.78 MHz with
+vctrl=0.792. Open- and closed-loop agree.
+
+### The structural finding
+
+At 125 C the curve is **flat above ~0.85 V** (tt/125: 538 -> 546 MHz from 0.85 to
+1.40 V). Saturated. So at the top of the range the ring is **not current-starved,
+it is RC-limited** by the load resistor (`res_high_po W=1 L=23`, ~7.4 k, in
+`ring_inverter_tune.sch:116,124`) and node capacitance. More vctrl buys nothing,
+and no amount of loop gain or seed voltage can help.
+
+> **per-corner tuning ratio (f_max/f_min ~ 1.14-1.21) is SMALLER than the
+> corner-to-corner spread of the band (700/536 ~ 1.31)**
+
+Therefore **no single fixed R centers all corners.** Dropping R by ~17 % would put
+125 C in range but push ff/-40 C to 727-819 MHz, where 600.6 falls below the floor.
+A resistor retune only trades hot for cold. Real fixes would be: widen the analog
+range (lower R *and* weaken the tail so current-starving stays the limiter over a
+wider vctrl span, target f_max/f_min >= 1.5), or add a 2-bit coarse trim bank, or
+narrow the temperature spec.
+
+### STATUS: ACCEPTED, NOT A BUG (user decision, 2026-07-23)
+
+**The user has accepted the temperature range as-is and de-scoped this.** The five
+T0 failures are a *known and documented limitation of the ring oscillator*, not a
+defect in the CDR or the precharge, and no further work on it is planned. Do not
+"fix" it without being asked.
+
+**But note one failure is NOT about temperature:** `tt/27C/1.62V` tops out at
+592 MHz, i.e. the VCO cannot reach 600.6 MHz at -10 % supply even at room
+temperature. That is a supply-margin issue and was not explicitly part of what was
+accepted. Flag it if supply tolerance ever comes up.
+
+### How to re-test temperature later
+
+Everything needed is committed and takes ~12 min:
+
+    cd xschem/tuning/pvt && ./gen_pvt.py && ./run_pvt.sh T0 && ./collect_pvt.py T0
+
+To evaluate a candidate ring resistor, edit `L` on R1/R2 in
+`ring_inverter_tune.sch:116,124`, re-run the three lines above, and read the
+`range` column. To test a *new* temperature, add it to the T0 grid in
+`gen_pvt.py::grids()`. The interesting comparison is always whether 600.6 MHz sits
+inside `[f_min, f_max]` at both temperature extremes **simultaneously**.
