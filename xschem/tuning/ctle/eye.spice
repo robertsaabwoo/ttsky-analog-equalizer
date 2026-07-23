@@ -1,0 +1,60 @@
+* CTLE eye test — PRBS7 through the R=500/C=1p channel at 600.6 Mb/s.
+* The as-drawn CTLE (subckt CTLE, netlisted straight out of xschem/CTLE.sch) and
+* the retuned bridging-cap CTLE hang off the SAME channel output, so the two
+* eyes come from one transient and are strictly comparable.
+* Both CTLEs together load the channel with ~50 fF of gate cap against its 1 pF,
+* i.e. a 2.5 % perturbation — small enough not to bias the comparison.
+.lib /home/ttuser/pdk/sky130A/libs.tech/ngspice/sky130.lib.spice tt
+.include ctle_baseline.inc
+.include ctle_p2.inc
+.include prbs.inc
+
+.param vcm=0.9
+.param vb=0.9
+.param cload=50f
+.param rch=500 cch=1p
+.param amp=0.2
+
+VDD  VDD 0 1.8
+VSS  VSS 0 0
+Vb   vbias 0 'vb'
+
+* PRBS -> differential source pair, `amp` volts differential peak-to-peak
+Esp  srcp 0 vol='vcm + amp*0.5*(v(dsrc)-0.5)'
+Esm  srcm 0 vol='vcm - amp*0.5*(v(dsrc)-0.5)'
+
+Rchp srcp inp 'rch'
+Rchm srcm inm 'rch'
+Cchp inp 0 'cch'
+Cchm inm 0 'cch'
+
+* as-drawn CTLE
+xb boutp boutm inp inm VDD VSS vbias CTLE
+Cbp boutp 0 'cload'
+Cbm boutm 0 'cload'
+
+* retuned CTLE
+xt toutp toutm inp inm VDD VSS vbias ctle_p2
+Ctp toutp 0 'cload'
+Ctm toutm 0 'cload'
+
+.options method=gear reltol=1e-4 abstol=1e-13 vntol=1e-7
+
+.control
+  alterparam Lload = 20
+  alterparam Ldeg  = 1.5
+  alterparam Wcap  = 18
+  reset
+  tran 10p 211.5n 0 20p
+  linearize
+  let vd_in   = v(inp)-v(inm)
+  let vd_base = v(boutp)-v(boutm)
+  let vd_tune = v(toutp)-v(toutm)
+  echo "#EYE amp=0.2 base=asdrawn tuned=Lload20_Ldeg1.5_Wcap18"
+  wrdata tmp.dat vd_in vd_base vd_tune
+  shell cat tmp.dat
+  echo "#OPINFO"
+  print v(boutp) v(toutp)
+  shell rm -f tmp.dat
+.endc
+.end

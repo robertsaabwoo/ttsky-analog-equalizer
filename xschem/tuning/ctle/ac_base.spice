@@ -1,0 +1,37 @@
+* CTLE small-signal characterization — baseline (as-drawn CTLE.sch values)
+.lib /home/ttuser/pdk/sky130A/libs.tech/ngspice/sky130.lib.spice tt
+.include ctle_p.inc
+
+.param vcm=0.9
+.param vb=0.9
+.param cload=50f
+
+VDD  VDD 0 1.8
+VSS  VSS 0 0
+Vb   vbias 0 'vb'
+
+* differential AC drive on a common-mode of vcm; 1 V differential total
+Vinp inp 0 dc 'vcm' ac 0.5 0
+Vinm inm 0 dc 'vcm' ac 0.5 180
+
+x1 outp outm inp inm VDD VSS vbias ctle_p
+
+* load the outputs with the CDR phase-detector input capacitance
+Clp outp 0 'cload'
+Clm outm 0 'cload'
+
+.options method=gear reltol=1e-4 abstol=1e-13 vntol=1e-7
+
+.control
+  op
+  echo "--- operating point ---"
+  print v(outp) v(outm) v(x1.sp) v(x1.st)
+  print @m.x1.xm1.msky130_fd_pr__nfet_01v8[gm] @m.x1.xm1.msky130_fd_pr__nfet_01v8[id]
+  print @m.x1.xm2.msky130_fd_pr__nfet_01v8[id] @m.x1.xm2.msky130_fd_pr__nfet_01v8[vds]
+  print @m.x1.xm1.msky130_fd_pr__nfet_01v8[vds] @m.x1.xm1.msky130_fd_pr__nfet_01v8[vgs]
+
+  ac dec 200 1e5 3e10
+  let gdb = db(v(outp)-v(outm))
+  wrdata ac_base.dat gdb
+.endc
+.end

@@ -1,0 +1,35 @@
+* Large-signal DC transfer of the tuned CTLE: differential in vs differential out.
+* Tells us the linear input range, where it starts limiting, and the output
+* headroom at each rail.  Also runs the as-drawn CTLE for comparison.
+.lib /home/ttuser/pdk/sky130A/libs.tech/ngspice/sky130.lib.spice tt
+.include ctle_baseline.inc
+.include ctle_p2.inc
+
+.param vcm=0.9
+.param vb=0.9
+.param cload=50f
+
+VDD  VDD 0 1.8
+VSS  VSS 0 0
+Vb   vbias 0 'vb'
+
+Vd   vd 0 dc 0
+Esp  inp 0 vol='vcm + 0.5*v(vd)'
+Esm  inm 0 vol='vcm - 0.5*v(vd)'
+
+xb boutp boutm inp inm VDD VSS vbias CTLE
+xt toutp toutm inp inm VDD VSS vbias ctle_p2
+
+.options method=gear reltol=1e-4 abstol=1e-13 vntol=1e-7
+
+.control
+  alterparam Lload = 20
+  alterparam Ldeg  = 1.5
+  alterparam Wcap  = 18
+  reset
+  dc Vd -1.2 1.2 0.01
+  let vob = v(boutp)-v(boutm)
+  let vot = v(toutp)-v(toutm)
+  wrdata dcxfer.dat vob vot
+.endc
+.end

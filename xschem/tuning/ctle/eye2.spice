@@ -1,0 +1,79 @@
+* CTLE eye vs channel loss — PRBS7 at 600.6 Mb/s.
+* Three RC channels (500 ohm x 1p/2p/4p, i.e. poles at 318/159/80 MHz) are driven
+* in parallel from the same ideal source, and each feeds both the as-drawn CTLE
+* and the retuned one.  One transient, nine waveforms, all directly comparable.
+.lib /home/ttuser/pdk/sky130A/libs.tech/ngspice/sky130.lib.spice tt
+.include ctle_baseline.inc
+.include ctle_p2.inc
+.include prbs.inc
+
+.param vcm=0.9
+.param vb=0.9
+.param cload=50f
+.param rch=500
+.param amp=0.2
+
+VDD  VDD 0 1.8
+VSS  VSS 0 0
+Vb   vbias 0 'vb'
+
+Esp  srcp 0 vol='vcm + amp*0.5*(v(dsrc)-0.5)'
+Esm  srcm 0 vol='vcm - amp*0.5*(v(dsrc)-0.5)'
+
+* --- channel A: 1 pF (f_p = 318 MHz) ---
+Rap srcp inap 'rch'
+Ram srcm inam 'rch'
+Cap inap 0 1p
+Cam inam 0 1p
+xba baoutp baoutm inap inam VDD VSS vbias CTLE
+Cbap baoutp 0 'cload'
+Cbam baoutm 0 'cload'
+xta taoutp taoutm inap inam VDD VSS vbias ctle_p2
+Ctap taoutp 0 'cload'
+Ctam taoutm 0 'cload'
+
+* --- channel B: 2 pF (f_p = 159 MHz) ---
+Rbp srcp inbp 'rch'
+Rbm srcm inbm 'rch'
+Cbp inbp 0 2p
+Cbm inbm 0 2p
+xbb bboutp bboutm inbp inbm VDD VSS vbias CTLE
+Cbbp bboutp 0 'cload'
+Cbbm bboutm 0 'cload'
+xtb tboutp tboutm inbp inbm VDD VSS vbias ctle_p2
+Ctbp tboutp 0 'cload'
+Ctbm tboutm 0 'cload'
+
+* --- channel C: 4 pF (f_p = 80 MHz) ---
+Rcp srcp incp 'rch'
+Rcm srcm incm 'rch'
+Ccp incp 0 4p
+Ccm incm 0 4p
+xbc bcoutp bcoutm incp incm VDD VSS vbias CTLE
+Cbcp bcoutp 0 'cload'
+Cbcm bcoutm 0 'cload'
+xtc tcoutp tcoutm incp incm VDD VSS vbias ctle_p2
+Ctcp tcoutp 0 'cload'
+Ctcm tcoutm 0 'cload'
+
+.options method=gear reltol=1e-4 abstol=1e-13 vntol=1e-7
+
+.control
+  alterparam Lload = 20
+  alterparam Ldeg  = 1.5
+  alterparam Wcap  = 18
+  reset
+  tran 10p 211.5n 0 20p
+  linearize
+  let ina = v(inap)-v(inam)
+  let inb = v(inbp)-v(inbm)
+  let inc = v(incp)-v(incm)
+  let ba  = v(baoutp)-v(baoutm)
+  let bb  = v(bboutp)-v(bboutm)
+  let bc  = v(bcoutp)-v(bcoutm)
+  let ta  = v(taoutp)-v(taoutm)
+  let tb  = v(tboutp)-v(tboutm)
+  let tc  = v(tcoutp)-v(tcoutm)
+  wrdata eye2.dat ina inb inc ba bb bc ta tb tc
+.endc
+.end

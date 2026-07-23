@@ -1,0 +1,62 @@
+* CTLE design-space sweep 2 — bridging-cap topology.
+* Ldeg (degeneration R, sets the boost) x Wcap (bridging MIM, sets the zero),
+* at two load resistances.
+.lib /home/ttuser/pdk/sky130A/libs.tech/ngspice/sky130.lib.spice tt
+.include ctle_p2.inc
+
+.param vcm=0.9
+.param vb=0.9
+.param cload=50f
+.param rch=500 cch=1p
+
+VDD  VDD 0 1.8
+VSS  VSS 0 0
+Vb   vbias 0 'vb'
+
+Vsp  srcp 0 dc 'vcm' ac 0.5 0
+Vsm  srcm 0 dc 'vcm' ac 0.5 180
+Rchp srcp inp 'rch'
+Rchm srcm inm 'rch'
+Cchp inp 0 'cch'
+Cchm inm 0 'cch'
+
+x1 outp outm inp inm VDD VSS vbias ctle_p2
+
+Clp outp 0 'cload'
+Clm outm 0 'cload'
+
+.options method=gear reltol=1e-4 abstol=1e-13 vntol=1e-7
+
+.control
+  foreach lld 16 20 24
+    foreach ldg 1.0 1.5 2.2
+      foreach wc 15 18 21
+        alterparam Lload = $lld
+        alterparam Ldeg  = $ldg
+        alterparam Wcap  = $wc
+        reset
+        op
+        let id1   = @m.x1.xm1.msky130_fd_pr__nfet_01v8[id]
+        let gm1   = @m.x1.xm1.msky130_fd_pr__nfet_01v8[gm]
+        let rdeg  = (v(x1.sp)-v(x1.st))/id1
+        let rload = (1.8-v(outp))/id1
+        let gmrs  = gm1*rdeg
+        let voutcm = v(outp)
+        let vsp = v(x1.sp)
+        let vst = v(x1.st)
+        let vdsat_tail = @m.x1.xm2.msky130_fd_pr__nfet_01v8[vdsat]
+        ac dec 60 1e5 3e10
+        let gdb  = db(v(outp)-v(outm))
+        let gind = db(v(inp)-v(inm))
+        wrdata tmp.dat gdb gind
+        shell echo "#PT Lload $lld Ldeg $ldg Wcap $wc"
+        shell cat tmp.dat
+        echo "OPX Lload $lld Ldeg $ldg Wcap $wc"
+        print id1 gm1 rdeg rload gmrs voutcm vsp vst vdsat_tail
+        destroy all
+      end
+    end
+  end
+  shell rm -f tmp.dat
+.endc
+.end

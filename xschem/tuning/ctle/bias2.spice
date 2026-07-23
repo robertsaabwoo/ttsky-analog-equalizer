@@ -1,0 +1,40 @@
+* CTLE bias / headroom report over the Lload x Ldeg grid (op only, no ac)
+.lib /home/ttuser/pdk/sky130A/libs.tech/ngspice/sky130.lib.spice tt
+.include ctle_p2.inc
+
+.param vcm=0.9
+.param vb=0.9
+
+VDD  VDD 0 1.8
+VSS  VSS 0 0
+Vb   vbias 0 'vb'
+Vsp  inp 0 dc 'vcm'
+Vsm  inm 0 dc 'vcm'
+
+x1 outp outm inp inm VDD VSS vbias ctle_p2
+
+.options method=gear reltol=1e-4 abstol=1e-13 vntol=1e-7
+
+.control
+  foreach lld 16 20 24
+    foreach ldg 0.69 1.5 3.0 5.0
+      alterparam Lload = $lld
+      alterparam Ldeg  = $ldg
+      reset
+      op
+      let id1   = @m.x1.xm1.msky130_fd_pr__nfet_01v8[id]
+      let gm1   = @m.x1.xm1.msky130_fd_pr__nfet_01v8[gm]
+      let vdst  = @m.x1.xm2.msky130_fd_pr__nfet_01v8[vds]
+      let vdsatt= @m.x1.xm2.msky130_fd_pr__nfet_01v8[vdsat]
+      let vds1  = @m.x1.xm1.msky130_fd_pr__nfet_01v8[vds]
+      let vdsat1= @m.x1.xm1.msky130_fd_pr__nfet_01v8[vdsat]
+      let rdeg  = (v(x1.sp)-v(x1.st))/id1
+      let rload = (1.8-v(outp))/id1
+      let gmrs  = gm1*rdeg
+      echo "BIAS Lload $lld Ldeg $ldg"
+      print id1 gm1 rdeg rload gmrs v(outp) v(x1.sp) v(x1.st) vdst vdsatt vds1 vdsat1
+      destroy all
+    end
+  end
+.endc
+.end
