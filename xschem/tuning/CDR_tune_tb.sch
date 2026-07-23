@@ -5,6 +5,84 @@ K {}
 V {}
 S {}
 E {}
+B 2 -400 -1180 800 -960 {flags=graph
+y1=0.6
+y2=0.9
+ypos1=0
+ypos2=2
+divy=6
+subdivy=1
+unity=1
+x1=0
+x2=1.5e-6
+divx=5
+subdivx=1
+xlabmag=1.0
+ylabmag=1.0
+node="vctrl"
+color=4
+dataset=-1
+unitx=1
+logx=0
+logy=0
+rainbow=0
+}
+B 2 -400 -940 800 -720 {flags=graph
+y1=-0.2
+y2=2
+ypos1=0
+ypos2=2
+divy=5
+subdivy=1
+unity=1
+x1=0
+x2=300e-9
+divx=6
+subdivx=1
+xlabmag=1.0
+ylabmag=1.0
+node="prech
+nbias
+vctrl"
+color="4 6 7"
+dataset=-1
+unitx=1
+logx=0
+logy=0
+rainbow=0
+}
+B 2 -400 -700 800 -480 {flags=graph
+y1=-0.2
+y2=2
+ypos1=0
+ypos2=2
+divy=5
+subdivy=1
+unity=1
+x1=1.4e-6
+x2=1.41e-6
+divx=5
+subdivx=1
+xlabmag=1.0
+ylabmag=1.0
+node="clkp
+datap"
+color="4 6"
+dataset=-1
+unitx=1
+logx=0
+logy=0
+rainbow=0
+}
+T {Graph 1: vctrl over the whole run -- precharge hold (~0.80 V) -> release
+at ~127 ns -> loop pulls to its own lock point 0.792 V.
+y range is 0.6..0.9 on purpose; the locked bang-bang dither is ~45 mV pk-pk,
+which is invisible on a 0..1.8 V scale.  Measured: vctrl_lock 0.7920 V.} -400 -1210 0 0 0.4 0.4 {}
+T {Graph 2: the precharge one-shot itself (first 300 ns).
+prech goes 1.8 -> 0 at t_release; nbias is the ~0.79 V seed; vctrl follows it.} -400 -970 0 0 0.4 0.4 {}
+T {Graph 3: recovered clock + data, ZOOMED to a 10 ns window.
+clkp must be rail-to-rail here.  Over the full 1.5 us this is ~900 cycles and
+renders as a solid band -- which is the other way to mistakenly read "no swing".} -400 -730 0 0 0.4 0.4 {}
 N -190 70 -160 70 {
 lab=vin+}
 N -190 90 -160 90 {
@@ -86,12 +164,55 @@ value="
 .lib /home/ttuser/pdk/sky130A/libs.tech/ngspice/sky130.lib.spice tt
 .include /home/ttuser/pdk/sky130A/libs.ref/sky130_fd_sc_hd/spice/sky130_fd_sc_hd.spice
 .options method=gear reltol=0.001 abstol=1e-12
+* ---------------------------------------------------------------------------
+* Plain-named copies of the two signals whose real names contain a '+'.
+* `let clkp = v(clk+)` does NOT work: ngspice's expression parser reads the '+'
+* as an operator and the assignment silently produces nothing (the vector just
+* never appears in the .raw).  A unity VCVS sidesteps it -- a netlist line is
+* plain tokens, no expression parsing -- and an ideal VCVS has infinite input
+* impedance, so it cannot load the node it copies.
+* ---------------------------------------------------------------------------
+Eclkp  clkp  0 clk+ 0 1
+Edatap datap 0 vin+ 0 1
+* ---------------------------------------------------------------------------
+* The startup precharge (x20) needs this ONE initial condition to work.
+* .op treats a capacitor as an OPEN, so without it the POR node nrc solves to
+* Vdd, `pre` sits at 0, the one-shot never fires and the cell is completely
+* inert -- vctrl then seeds at ~0.663 V, right on the VCO dead-zone cliff.
+* This is NOT a seed on vctrl: it just says the POR cap is discharged at
+* power-up, which is physically true.  (See NOTES.md 17e.)
+* ---------------------------------------------------------------------------
+.ic v(x1.x20.nrc)=0
 .op
 .control
+* `save` keeps the .raw small.  The bare `write` stored EVERY node of the whole
+* CDR for 75000 timepoints, which is what OOM-crashed the VM.  Add nodes here
+* if you want to probe something else.
+  save v(x1.net1) v(clk+) v(clkp) v(datap) v(x1.x20.pre) v(x1.x20.nbias) v(x1.x20.nrc)
   tran 20p 1500n
+* Hierarchical nodes are safe to alias with `let` (no '+' in the name); clkp and
+* datap already exist as real nodes, courtesy of the two VCVS above.
+  let vctrl = v(x1.net1)
+  let prech = v(x1.x20.pre)
+  let nbias = v(x1.x20.nbias)
   write CDR_tune_tb.raw
+* --- numeric summary, printed in the ngspice log ---
+  meas tran vctrl_lock AVG v(x1.net1) FROM=1300n TO=1400n
+  meas tran vctrl_ripp PP  v(x1.net1) FROM=1300n TO=1400n
+  meas tran clk_swing  PP  v(clk+)    FROM=1300n TO=1400n
+  meas tran t_release  WHEN v(x1.x20.pre)=0.9 FALL=1
+  meas tran c600 WHEN v(clk+)=0.9 RISE=600
+  meas tran c660 WHEN v(clk+)=0.9 RISE=660
+  let f_MHz = 60/(c660-c600)/1e6
+  print f_MHz
 .endc
 "}
+C {devices/launcher.sym} -560 -1100 0 0 {name=h_load
+descr="Load waves"
+tclcommand="
+xschem raw_read $netlist_dir/[file tail [file rootname [xschem get current_name]]].raw tran
+"
+}
 C {devices/vsource.sym} -350 105 0 0 {name=V2 value="PULSE(0 1.8 0 10p 10p 1.67n 3.33n)" savecurrent=false
 lab=vin+}
 C {devices/gnd.sym} -350 135 0 0 {name=l2 lab=GND}

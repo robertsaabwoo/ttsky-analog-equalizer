@@ -1732,3 +1732,88 @@ curve for the same corner before touching the cell.
 Also: `str(1.80)` is `"1.8"`, which produced deck names `1p8` in one grid and
 `1p80` in another, so `--only` matched nothing. All voltage tags now go through a
 single `vtag()` formatter.
+
+# §19. Session 7 (cont.) — the GUI testbench was silently broken by the precharge
+
+Symptom reported from an xschem GUI run of `CDR_tune_tb`: a clock trace with a
+swing of "about 5 mV".
+
+## 19a. Cause — `.op` makes the POR one-shot unfireable
+
+`.op` treats a capacitor as an **open circuit**, so the precharge cell's POR node
+`nrc` solves straight to Vdd. Then `pre = 0`, the one-shot never fires, and the
+whole cell is inert. Verified directly with an op-only run:
+
+```
+v(x1.x20.nrc)   = 1.800000     POR cap "already charged" at t=0
+v(x1.x20.pre)   = 1.6e-08      one-shot never fires
+v(x1.x20.nbias) = 0.0929
+v(x1.net1)      = 0.6633836    vctrl seeds ON the ~0.65 V dead-zone cliff
+```
+
+With vctrl seeded at 0.663 V the ring cannot oscillate -> no clock edges -> the PD
+emits nothing -> vctrl never moves. Deadlock. Reproduced by running the stock GUI
+deck unmodified (`runs/gui_asis.spice`, 400 ns):
+
+```
+vctrl  = 0.6633836 V   frozen from t=0 (pp = 4.4 uV)
+clk_pp = 6.096 mV      <- the reported "5 mV"
+```
+
+That is the dead-VCO signature; §16g logged 6 mV for the identical failure.
+
+**Note this is the GOOD polarity, which locked without any precharge in §16b.**
+Adding the cell moved the DC operating point onto the cliff: MSW is off, but the
+DC solver still sees its subthreshold path down to `nbias ~ 0.09 V`. So after §17
+the `.ic` is *mandatory* for this deck — without it the sim is worse than before
+the cell existed. This is a simulation artifact, not a silicon one (a real chip has
+no `.op`; the supply ramps and the POR fires by itself, which is exactly what T1
+proves with no `.ic` anywhere), but it is a genuine footgun, so the line now lives
+in the schematic rather than only in my hand-built decks.
+
+## 19b. Fixes applied to `CDR_tune_tb.sch`
+
+1. **`.ic v(x1.x20.nrc)=0`** added, with the reasoning inline. NOT a seed on vctrl.
+2. **`save`-limited the `.raw`.** The bare `write` stored every node of the whole
+   CDR across 75000 timepoints — this is what OOM-crashed the VM in session 6.
+3. **Three graph widgets + a "Load waves" launcher**, and a numeric summary
+   (`vctrl_lock`, `clk_swing`, `t_release`, `f_MHz`) printed to the ngspice log.
+4. **Plain-named copies of `clk+` and `vin+`** as `clkp` / `datap`.
+
+Verified end to end on the exact deck the GUI runs:
+
+```
+vctrl_lock = 0.7920 V     (was frozen at 0.6634)
+clk_swing  = 1.876 V      (was 6 mV)
+t_release  = 126.5 ns
+f_MHz      = 600.781      (+0.030 %)   -- identical to §17f
+raw file   = 7.4 MB, 11 vectors, 87692 points
+```
+
+Confirmed working by the user via the ngspice `plot` command.
+
+## 19c. Method note — `let` cannot alias a node whose name contains '+'
+
+`let clkp = v(clk+)` **silently produces nothing**: ngspice's expression parser
+reads the `+` as an operator, the assignment fails, and the vector simply never
+appears in the `.raw`. There is no error message — the first end-to-end run is what
+exposed it (`clkp` and `datap` were missing from the variable list while `vctrl`,
+`prech` and `nbias`, which alias hierarchical nodes with no `+`, were all present).
+
+Workaround used: a unity VCVS, because a netlist line is plain tokens with no
+expression parsing, and an ideal VCVS has infinite input impedance so it cannot
+load the node it copies:
+
+```
+Eclkp  clkp  0 clk+ 0 1
+Edatap datap 0 vin+ 0 1
+```
+
+The same '+' hazard applies to xschem graph `node` fields, which is why the graphs
+plot `clkp`/`datap` rather than `clk+`/`vin+`.
+
+## 19d. Correction to a number quoted earlier
+
+Locked vctrl dither is **~45 mV pk-pk** (`vctrl_ripp = 0.0450`), not "a few mV" as
+first stated. So 5 mV is not normal for vctrl either — on any node in this bench a
+~5 mV reading means the VCO is dead, which makes the diagnosis unambiguous.
