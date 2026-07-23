@@ -139,6 +139,13 @@ with 1.1 dB of ripple. Nothing here needs a corner-specific fix. (Contrast with
 the ring oscillator, whose temperature limit is a real accepted failure —
 `../HANDOFF.md` §2.)
 
+The **minimax alternative** of C10 (`Ldeg 3.0 / Wcap 21`) was run over the same
+27 corners (`ac_corner_mm.spice`) so that switching to it needs no further
+qualification: CTLE DC gain +6.93..+8.34 dB, boost +4.35..+5.97 dB, gain at
+Nyquist +8.04..+11.40 dB. Equally PVT-stable — it simply over-equalizes the mild
+1 pF channel on purpose (3.2-4.2 dB of ripple there), which is the price of
+being right about a lossier one. Both sizings are qualified; pick by channel.
+
 ## C7. The input common mode is the real cliff — 0.9 V sits on its edge
 
 `cmsens.spice`, tuned design, Vcm swept:
