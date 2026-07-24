@@ -10,3 +10,7 @@ prbs_bits.txt
 sw1_
 subckt_src.spice
 chain_blocks.inc
+ac_tt_tt.spice
+ac_tt_ss.spice
+ac_tt_ff.spice
+ctle_tune_sch.inc

@@ -1,0 +1,66 @@
+* Edge check: is the eye-WIDTH optimum outside the eye_tt3/eye_tt4 grid?
+* Ldeg 4.0 / Wcap 21 was best on width and the trend still favoured less cap.  Boost is capped by gm*Rdeg, so more gm is
+* the only lever left once Ldeg/Wcap have flattened out (eye_tt3.log).  Win costs
+* current and input capacitance, and the input cap sits directly across the
+* channel's 5 pF, so this has to be paid for -- hence the itot measurement.
+* Wcap fixed at 21 and Ldeg at the eye_tt3 plateau.
+.lib /home/ttuser/pdk/sky130A/libs.tech/ngspice/sky130.lib.spice tt
+.include ctle_p2.inc
+.include prbs.inc
+
+.param vcm=0.9
+.param amp=0.2
+.param cload=50f
+
+VDD  VDD 0 1.8
+VSS  VSS 0 0
+Vb   vbias 0 0.9
+
+Esp  srcp 0 vol='vcm + amp*0.5*(v(dsrc)-0.5)'
+Esm  srcm 0 vol='vcm - amp*0.5*(v(dsrc)-0.5)'
+
+Rap srcp inap 500
+Ram srcm inam 500
+Cap inap 0 5p
+Cam inam 0 5p
+xta taoutp taoutm inap inam VDD VSS vbias ctle_p2
+Ctap taoutp 0 'cload'
+Ctam taoutm 0 'cload'
+
+Rcp srcp incp 200
+Rcm srcm incm 200
+Ccp incp 0 1.5p
+Ccm incm 0 1.5p
+xtc tcoutp tcoutm incp incm VDD VSS vbias ctle_p2
+Ctcp tcoutp 0 'cload'
+Ctcm tcoutm 0 'cload'
+
+.options method=gear reltol=1e-4 abstol=1e-13 vntol=1e-7
+
+.control
+  foreach wi 20
+    foreach ldg 4.0 5.0
+      foreach wc 15 18
+      alterparam Win   = $wi
+      alterparam Lload = 20
+      alterparam Ldeg  = $ldg
+      alterparam Wcap  = $wc
+      reset
+      tran 10p 211.5n 0 20p
+      meas tran itot AVG i(VDD)      from=100n to=211n
+      meas tran ocm  AVG v(tcoutp)   from=100n to=211n
+      linearize
+      let ina = v(inap)-v(inam)
+      let inc = v(incp)-v(incm)
+      let ta  = v(taoutp)-v(taoutm)
+      let tc  = v(tcoutp)-v(tcoutm)
+      wrdata tmp.dat ina inc ta tc
+      shell echo ""
+      shell echo "#EYE Win $wi Ldeg $ldg Wcap $wc"
+      shell cat tmp.dat
+      end
+    end
+  end
+  shell rm -f tmp.dat
+.endc
+.end

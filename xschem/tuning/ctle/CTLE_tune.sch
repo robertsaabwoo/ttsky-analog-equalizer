@@ -105,7 +105,7 @@ C {devices/opin.sym} 90 -140 0 0 {name=p8 lab=vout-}
 C {devices/opin.sym} -160 -150 0 1 {name=p12 lab=vout+}
 C {sky130_fd_pr/nfet_01v8.sym} -150 -100 0 0 {name=M1
 L=0.3
-W=10
+W=20
 nf=1 
 mult=1
 ad="'int((nf+1)/2) * W/nf * 0.29'" 
@@ -132,7 +132,7 @@ spiceprefix=X
 }
 C {sky130_fd_pr/nfet_01v8.sym} 80 -100 0 1 {name=M4
 L=0.3
-W=10
+W=20
 nf=1 
 mult=1
 ad="'int((nf+1)/2) * W/nf * 0.29'" 
@@ -158,7 +158,7 @@ spiceprefix=X
 mult=1}
 C {sky130_fd_pr/res_high_po.sym} -130 30 2 0 {name=R3
 W=1
-L=1.5
+L=5.0
 model=res_high_po
 spiceprefix=X
 mult=1}
@@ -168,7 +168,7 @@ C {sky130_fd_pr/cap_mim_m3_1.sym} -250 30 0 0 {name=CS model=cap_mim_m3_1 W=18 L
 C {devices/lab_wire.sym} -110 30 0 1 {name=p6 sig_type=std_logic lab=VSS}
 C {sky130_fd_pr/res_high_po.sym} 60 30 2 0 {name=R4
 W=1
-L=1.5
+L=5.0
 model=res_high_po
 spiceprefix=X
 mult=1}

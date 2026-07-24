@@ -12,7 +12,10 @@ For each channel we report:
   @Nyq    absolute combined gain at Nyquist -- how much signal the next stage
           actually gets on the worst-case data pattern.
 
-usage: ladderreport.py <log> [nyquist_Hz] [sort_channel:1p|2p|4p]
+usage: ladderreport.py <log> [nyquist_Hz] [sort_channel] [labels_csv]
+
+labels_csv renames the three channels (default "1p,2p,4p"); ladder_tt.spice uses
+the Tiny Tapeout pin channels, so pass e.g. "500/5p,350/3p,200/1.5p".
 """
 import sys
 from math import log10
@@ -61,9 +64,12 @@ def chan_metrics(rows, comb_col, nyq):
 
 
 def main():
+    global CH
     path = sys.argv[1]
     nyq = float(sys.argv[2]) if len(sys.argv) > 2 else 300e6
-    sortch = sys.argv[3] if len(sys.argv) > 3 else "2p"
+    if len(sys.argv) > 4:
+        CH = sys.argv[4].split(",")
+    sortch = sys.argv[3] if len(sys.argv) > 3 else CH[1]
     ci = CH.index(sortch)
 
     out = []

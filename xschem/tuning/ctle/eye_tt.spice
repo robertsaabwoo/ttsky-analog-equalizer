@@ -1,0 +1,106 @@
+* Eyes at 600.6 Mb/s through the Tiny Tapeout analog pin path.
+* Channels are the same three as ladder_tt.spice: spec-worst 500/5p, mid 350/3p,
+* optimistic 200/1.5p.  Six sizings spanning the boost ladder, one transient each.
+* Ripple is only a proxy; on a channel this lossy the eye and the ripple optimum
+* are different sizings, so this deck is the tiebreak.
+.lib /home/ttuser/pdk/sky130A/libs.tech/ngspice/sky130.lib.spice tt
+.include ctle_p2.inc
+.include prbs.inc
+
+.param vcm=0.9
+.param vb=0.9
+.param cload=50f
+.param amp=0.2
+
+VDD  VDD 0 1.8
+VSS  VSS 0 0
+Vb   vbias 0 'vb'
+
+Esp  srcp 0 vol='vcm + amp*0.5*(v(dsrc)-0.5)'
+Esm  srcm 0 vol='vcm - amp*0.5*(v(dsrc)-0.5)'
+
+* --- channel A: 500 ohm / 5.0 pF (spec worst, pole 63.7 MHz) ---
+Rap srcp inap 500
+Ram srcm inam 500
+Cap inap 0 5p
+Cam inam 0 5p
+xta taoutp taoutm inap inam VDD VSS vbias ctle_p2
+Ctap taoutp 0 'cload'
+Ctam taoutm 0 'cload'
+
+* --- channel B: 350 ohm / 3.0 pF (mid, pole 151.6 MHz) ---
+Rbp srcp inbp 350
+Rbm srcm inbm 350
+Cbp inbp 0 3p
+Cbm inbm 0 3p
+xtb tboutp tboutm inbp inbm VDD VSS vbias ctle_p2
+Ctbp tboutp 0 'cload'
+Ctbm tboutm 0 'cload'
+
+* --- channel C: 200 ohm / 1.5 pF (optimistic, pole 530 MHz) ---
+Rcp srcp incp 200
+Rcm srcm incm 200
+Ccp incp 0 1.5p
+Ccm incm 0 1.5p
+xtc tcoutp tcoutm incp incm VDD VSS vbias ctle_p2
+Ctcp tcoutp 0 'cload'
+Ctcm tcoutm 0 'cload'
+
+.options method=gear reltol=1e-4 abstol=1e-13 vntol=1e-7
+
+.control
+  * Win Ldeg Wcap, six points chosen off ladder_tt.log:
+  *   10 1.5 18 = CTLE_tune as it stands today
+  *   20 1.5 18 / 40 1.5 30 = more gm, low boost (best @Nyq)
+  *   20 3.0 24 / 40 5.0 30 = mid boost
+  *   20 12. 18 = the ripple optimum on the worst channel
+  let i = 0
+  foreach pt 10_1.5_18 20_1.5_18 40_1.5_30 20_3.0_24 40_5.0_30 20_12.0_18
+    if i = 0
+      alterparam Win = 10
+      alterparam Ldeg = 1.5
+      alterparam Wcap = 18
+    end
+    if i = 1
+      alterparam Win = 20
+      alterparam Ldeg = 1.5
+      alterparam Wcap = 18
+    end
+    if i = 2
+      alterparam Win = 40
+      alterparam Ldeg = 1.5
+      alterparam Wcap = 30
+    end
+    if i = 3
+      alterparam Win = 20
+      alterparam Ldeg = 3.0
+      alterparam Wcap = 24
+    end
+    if i = 4
+      alterparam Win = 40
+      alterparam Ldeg = 5.0
+      alterparam Wcap = 30
+    end
+    if i = 5
+      alterparam Win = 20
+      alterparam Ldeg = 12.0
+      alterparam Wcap = 18
+    end
+    alterparam Lload = 20
+    reset
+    tran 10p 211.5n 0 20p
+    linearize
+    let ina = v(inap)-v(inam)
+    let inb = v(inbp)-v(inbm)
+    let inc = v(incp)-v(incm)
+    let ta  = v(taoutp)-v(taoutm)
+    let tb  = v(tboutp)-v(tboutm)
+    let tc  = v(tcoutp)-v(tcoutm)
+    wrdata tmp.dat ina inb inc ta tb tc
+    shell echo "#EYE $pt"
+    shell cat tmp.dat
+    let i = i + 1
+  end
+  shell rm -f tmp.dat
+.endc
+.end

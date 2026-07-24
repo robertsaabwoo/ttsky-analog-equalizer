@@ -1,0 +1,95 @@
+* Does the spec-worst TT pin channel need TWO CTLE stages?
+* At 500 ohm / 5 pF the eye is fully closed at the pad (eye_tt.log: -5 mV,
+* 0.000 UI), and one stage reopens it only to ~0.3 UI.  This deck cascades two
+* stages and compares against the two best single-stage sizings, on the worst
+* channel and on the optimistic one (to catch over-equalization).
+* A second stage also replaces the abandoned LA_Limiter: driven hard it limits.
+.lib /home/ttuser/pdk/sky130A/libs.tech/ngspice/sky130.lib.spice tt
+.include ctle_f.inc
+.include prbs.inc
+
+.param vcm=0.9
+.param amp=0.2
+.param cload=50f
+.param cmid=10f
+
+VDD  VDD 0 1.8
+VSS  VSS 0 0
+Vb   vbias 0 0.9
+
+Esp  srcp 0 vol='vcm + amp*0.5*(v(dsrc)-0.5)'
+Esm  srcm 0 vol='vcm - amp*0.5*(v(dsrc)-0.5)'
+
+* ===== channel A: 500 ohm / 5 pF, spec worst case =====
+Rap srcp inap 500
+Ram srcm inam 500
+Cap inap 0 5p
+Cam inam 0 5p
+
+* S1 — single stage, widest eye in eye_tt.log
+xas1 as1p as1m inap inam VDD VSS vbias ctle_f Win=20 Ldeg=3.0 Wcap=24
+Cas1p as1p 0 'cload'
+Cas1m as1m 0 'cload'
+
+* S2 — single stage, tallest eye in eye_tt.log
+xas2 as2p as2m inap inam VDD VSS vbias ctle_f Win=40 Ldeg=1.5 Wcap=30
+Cas2p as2p 0 'cload'
+Cas2m as2m 0 'cload'
+
+* D1 — two identical stages
+xad1a ad1ap ad1am inap inam VDD VSS vbias ctle_f Win=20 Ldeg=3.0 Wcap=24
+Cad1ap ad1ap 0 'cmid'
+Cad1am ad1am 0 'cmid'
+xad1b ad1bp ad1bm ad1ap ad1am VDD VSS vbias ctle_f Win=20 Ldeg=3.0 Wcap=24
+Cad1bp ad1bp 0 'cload'
+Cad1bm ad1bm 0 'cload'
+
+* D2 — boost in stage 1, mostly gain in stage 2
+xad2a ad2ap ad2am inap inam VDD VSS vbias ctle_f Win=20 Ldeg=3.0 Wcap=24
+Cad2ap ad2ap 0 'cmid'
+Cad2am ad2am 0 'cmid'
+xad2b ad2bp ad2bm ad2ap ad2am VDD VSS vbias ctle_f Win=20 Ldeg=1.5 Wcap=18
+Cad2bp ad2bp 0 'cload'
+Cad2bm ad2bm 0 'cload'
+
+* ===== channel C: 200 ohm / 1.5 pF, optimistic — check for over-equalization =====
+Rcp srcp incp 200
+Rcm srcm incm 200
+Ccp incp 0 1.5p
+Ccm incm 0 1.5p
+
+xcs1 cs1p cs1m incp incm VDD VSS vbias ctle_f Win=20 Ldeg=3.0 Wcap=24
+Ccs1p cs1p 0 'cload'
+Ccs1m cs1m 0 'cload'
+
+xcd1a cd1ap cd1am incp incm VDD VSS vbias ctle_f Win=20 Ldeg=3.0 Wcap=24
+Ccd1ap cd1ap 0 'cmid'
+Ccd1am cd1am 0 'cmid'
+xcd1b cd1bp cd1bm cd1ap cd1am VDD VSS vbias ctle_f Win=20 Ldeg=3.0 Wcap=24
+Ccd1bp cd1bp 0 'cload'
+Ccd1bm cd1bm 0 'cload'
+
+.options method=gear reltol=1e-4 abstol=1e-13 vntol=1e-7
+
+.control
+  tran 10p 211.5n 0 20p
+  meas tran itot   AVG i(VDD)    from=100n to=211n
+  meas tran cm_s1  AVG v(as1p)   from=100n to=211n
+  meas tran cm_d1a AVG v(ad1ap)  from=100n to=211n
+  meas tran cm_d1b AVG v(ad1bp)  from=100n to=211n
+  linearize
+  let ina  = v(inap)-v(inam)
+  let s1   = v(as1p)-v(as1m)
+  let s2   = v(as2p)-v(as2m)
+  let d1   = v(ad1bp)-v(ad1bm)
+  let d2   = v(ad2bp)-v(ad2bm)
+  let inc  = v(incp)-v(incm)
+  let cs1  = v(cs1p)-v(cs1m)
+  let cd1  = v(cd1bp)-v(cd1bm)
+  wrdata tmp.dat ina s1 s2 d1 d2 inc cs1 cd1
+  shell echo ""
+  shell echo "#EYE cascade"
+  shell cat tmp.dat
+  shell rm -f tmp.dat
+.endc
+.end

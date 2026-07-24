@@ -1,0 +1,63 @@
+* Fine sweep around the single-stage winner from eye_tt.log (Win 20 / Ldeg 3.0 /
+* Wcap 24), on the spec-worst TT channel and the optimistic one.  eye_tt2.log
+* settled the 1-vs-2-stage question in favour of one stage: the cascade doubles
+* the swing we already have enough of and gives up 0.10 UI of timing margin,
+* which is the quantity the CDR actually lives on.  So refine the single stage.
+.lib /home/ttuser/pdk/sky130A/libs.tech/ngspice/sky130.lib.spice tt
+.include ctle_p2.inc
+.include prbs.inc
+
+.param vcm=0.9
+.param amp=0.2
+.param cload=50f
+
+VDD  VDD 0 1.8
+VSS  VSS 0 0
+Vb   vbias 0 0.9
+
+Esp  srcp 0 vol='vcm + amp*0.5*(v(dsrc)-0.5)'
+Esm  srcm 0 vol='vcm - amp*0.5*(v(dsrc)-0.5)'
+
+* channel A: 500 ohm / 5 pF (spec worst)
+Rap srcp inap 500
+Ram srcm inam 500
+Cap inap 0 5p
+Cam inam 0 5p
+xta taoutp taoutm inap inam VDD VSS vbias ctle_p2
+Ctap taoutp 0 'cload'
+Ctam taoutm 0 'cload'
+
+* channel C: 200 ohm / 1.5 pF (optimistic)
+Rcp srcp incp 200
+Rcm srcm incm 200
+Ccp incp 0 1.5p
+Ccm incm 0 1.5p
+xtc tcoutp tcoutm incp incm VDD VSS vbias ctle_p2
+Ctcp tcoutp 0 'cload'
+Ctcm tcoutm 0 'cload'
+
+.options method=gear reltol=1e-4 abstol=1e-13 vntol=1e-7
+
+.control
+  foreach ldg 2.2 3.0 4.0
+    foreach wc 21 24 27
+      alterparam Win   = 20
+      alterparam Lload = 20
+      alterparam Ldeg  = $ldg
+      alterparam Wcap  = $wc
+      reset
+      tran 10p 211.5n 0 20p
+      linearize
+      let ina = v(inap)-v(inam)
+      let inc = v(incp)-v(incm)
+      let ta  = v(taoutp)-v(taoutm)
+      let tc  = v(tcoutp)-v(tcoutm)
+      wrdata tmp.dat ina inc ta tc
+      shell echo ""
+      shell echo "#EYE Win 20 Ldeg $ldg Wcap $wc"
+      shell cat tmp.dat
+    end
+  end
+  shell rm -f tmp.dat
+.endc
+.end
