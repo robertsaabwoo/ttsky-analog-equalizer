@@ -553,6 +553,43 @@ promotion is answered, so promoting is now a decision about *when*, not *what*.
   `sed 's/.*#EYE/#EYE/' raw.log | grep -v "Reference value"` (what the `*_clean.log`
   files are).
 
+## C22. Eye across PVT — the check C18 could not make
+
+C18 qualified the corners in **AC**, which is not the same as qualifying the eye:
+gain in dB does not map linearly onto an opening in mV, and the group-delay
+change over corners moves the sampling phase. `eye_pvtc_{worst,best}.spice` run
+the actual PRBS7 eye at the two extremes of the box, on 500 Ω / 5 pF:
+
+| corner | eye height | eye width | output CM |
+|---|---|---|---|
+| `ss / 125 °C / 1.62 V` (worst) | **174 mV** | **0.350 UI** | 1.149 V |
+| `tt / 27 °C / 1.8 V` (nominal) | 232 mV | 0.430 UI | ~1.27 V |
+| `ff / −40 °C / 1.98 V` (best) | 273 mV | 0.485 UI | 1.511 V |
+
+**The eye never closes.** Worst case is still 174 mV into a slicer and 0.350 UI
+of timing margin — that is the number to design the rest of the chain against,
+not the 0.430 UI of C17.
+
+The thing this exposes that AC could not: **the output common mode moves 362 mV
+over the corner box** (1.149 → 1.511 V). Anything DC-coupled to this output has to
+tolerate that swing, and per C7 the CTLE's own input CM optimum is a narrow
+1.0-1.1 V — which is why the C19 cascade is a bad idea for a second reason.
+`D2S_amp` is DC-coupled to this node and has never been checked against it.
+
+### Trap: `reset` throws away `alter`, but keeps `alterparam`
+
+The first version of this deck looped the corners inside `.control` with
+`set temp = …` / `alter VDD = …` before a `reset`, and produced **identical
+numbers for every corner** — no error, no warning. `reset` re-reads the circuit
+from the parsed netlist, discarding instance `alter`s; `alterparam` changes the
+parameter itself and does survive, which is why every earlier sweep in this
+directory worked and made the bug easy to miss. The MOS corner appeared to work
+(it comes from `.lib`), so only temperature and supply were silently ignored.
+Corners are now one hardcoded deck each, with `.temp` as a netlist card.
+
+If a sweep produces suspiciously identical results, check that what you are
+sweeping is an `alterparam`, not an `alter`.
+
 ## C21. What is actually open now
 
 1. **Promote into `CTLE.sch`?** The sizing is settled and PVT-qualified. This is

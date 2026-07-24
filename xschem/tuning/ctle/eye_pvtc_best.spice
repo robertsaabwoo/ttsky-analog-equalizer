@@ -1,0 +1,53 @@
+* Eye at the PVT extremes, on the spec-worst TT pin channel.
+* Everything in C17 is tt/27C/1.8V; C18 qualified the corners in AC only, and AC
+* gain does not translate linearly into eye opening.  This is the check that the
+* 0.430 UI of timing margin survives the corner box.
+* MOS corner comes from the .lib line (this file is copied per corner).
+* NOTE: an earlier version of this deck looped the corners with `set temp` /
+* `alter VDD` inside .control and got IDENTICAL numbers for every corner --
+* `reset` re-reads the circuit and throws both away (`alterparam` survives it,
+* `alter` does not).  Corners are hardcoded per deck now.
+.lib /home/ttuser/pdk/sky130A/libs.tech/ngspice/sky130.lib.spice ff
+.include ctle_p2.inc
+.include prbs.inc
+
+.param vcm=0.9
+.param amp=0.2
+.param cload=50f
+
+.temp -40
+VDD  VDD 0 1.98
+VSS  VSS 0 0
+Vb   vbias 0 0.9
+
+Esp  srcp 0 vol='vcm + amp*0.5*(v(dsrc)-0.5)'
+Esm  srcm 0 vol='vcm - amp*0.5*(v(dsrc)-0.5)'
+
+Rap srcp inap 500
+Ram srcm inam 500
+Cap inap 0 5p
+Cam inam 0 5p
+xta taoutp taoutm inap inam VDD VSS vbias ctle_p2
+Ctap taoutp 0 'cload'
+Ctam taoutm 0 'cload'
+
+.options method=gear reltol=1e-4 abstol=1e-13 vntol=1e-7
+
+.control
+  alterparam Win   = 20
+  alterparam Lload = 20
+  alterparam Ldeg  = 5.0
+  alterparam Wcap  = 18
+  reset
+  tran 10p 211.5n 0 20p
+  meas tran ocm AVG v(taoutp) from=100n to=211n
+  linearize
+  let ina = v(inap)-v(inam)
+  let ta  = v(taoutp)-v(taoutm)
+  wrdata tmp.dat ina ta
+  shell echo ""
+  shell echo "#EYE ff/-40C/1.98V"
+  shell cat tmp.dat
+  shell rm -f tmp.dat
+.endc
+.end
