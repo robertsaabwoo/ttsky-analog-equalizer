@@ -109,14 +109,24 @@ bare supply ramp with no `.ic` anywhere. Tightest margin is **31 mV at ff/−40 
 
 ## 6. For the CTLE work specifically
 
-**Session 8 did this — read `ctle/NOTES_CTLE.md` (§C1-C14) first.** Short version:
-`CTLE.sch` had no peaking at all (its degeneration zero landed on top of its own
-output pole), it is retuned in the sandbox copy `ctle/CTLE_tune.sch`, and the
-retune passes 27 PVT corners. `CTLE.sch` itself is untouched pending the channel
-question in §C14. The two things that will bite whoever picks this up:
-the existing CTLE testbenches drive the input pair 8.5 dB into compression, and
-`LA_Limiter.sch` cannot be cascaded behind the CTLE at all (PMOS pair, wrong
-input CM, plus mismatched load resistors).
+**Sessions 8-9 did this — read `ctle/NOTES_CTLE.md` (§C1-C21) first.** Short
+version: `CTLE.sch` had no peaking at all (its degeneration zero landed on top of
+its own output pole), and it is retuned in the sandbox copy `ctle/CTLE_tune.sch`.
+
+The channel turned out to be **the Tiny Tapeout analog pin path itself** — spec'd
+at < 500 Ω and < 5 pF, i.e. a 63.7 MHz pole, which **closes the eye completely at
+the pad** at 600 Mb/s. So the CTLE is load-bearing, not an optimization. Final
+sizing `Win 20 / Lload 20 / Ldeg 5.0 / Wcap 18` gives 232 mV / 0.430 UI on that
+worst case and passes 27 PVT corners at +6.3..+7.9 dB of boost. `CTLE.sch` itself
+is still untouched — promotion is a *when*, not a *what*, now.
+
+Four things that will bite whoever picks this up:
+- the existing CTLE testbenches drive the input pair 8.5 dB into compression, so
+  equalization can never show up in them — keep test inputs ≤ 400 mVpp diff;
+- **`LA_Limiter` is abandoned** (user, 2026-07-24) and could not have been
+  cascaded behind the CTLE anyway (PMOS pair, wrong input CM, mismatched loads);
+- a two-stage CTLE was tried and rejected — it costs timing margin (§C19);
+- `D2S_amp` (0.445 UI) is now the narrowest link in the chain and untuned.
 
 Existing files: `xschem/CTLE.sch`, `CTLE.sym`, `CTLE_testbench.sch`,
 `CTLE_WITH_LATCH.sch`. Untracked/WIP at the time of writing: `LA_Limiter.sch`,
