@@ -1,0 +1,57 @@
+** sch_path: /home/ttuser/ttsky-analog-equalizer/xschem/CTLE_testbench.sch
+**.subckt CTLE_testbench
+V3 Vdd GND 1.8
+V1 Vss GND 0
+R1 vin+_bad vin+ 500 m=1
+R2 vin-_bad vin- 500 m=1
+C1 Vss vin+_bad 1p m=1
+C2 vin-_bad Vss 1p m=1
+V2 vin+ GND PULSE(0 1.8 0 50p 50p 0.5n 1n)
+V4 vin- GND PULSE(1.8 0 0 50p 50p 0.5n 1n)
+V5 vbias GND 0.8
+R3 Vss vout+ 500 m=1
+R4 Vss vout- 500 m=1
+x1 vout+ vout- vin+_bad vin-_bad Vdd Vss vbias CTLE
+**** begin user architecture code
+
+
+
+.lib /home/ttuser/pdk/sky130A/libs.tech/ngspice/sky130.lib.spice tt
+.options method=gear reltol=0.001 abstol=1e-12
+.control
+  tran 10p 5n
+  write CTLE_testbench.raw
+.endc
+
+
+
+**** end user architecture code
+**.ends
+
+* expanding   symbol:  CTLE.sym # of pins=7
+** sym_path: /home/ttuser/ttsky-analog-equalizer/xschem/CTLE.sym
+** sch_path: /home/ttuser/ttsky-analog-equalizer/xschem/CTLE.sch
+.subckt CTLE vout+ vout- vin+ vin- VDD VSS vbias
+*.iopin VDD
+*.iopin VSS
+*.ipin vin+
+*.ipin vin-
+*.ipin vbias
+*.opin vout-
+*.opin vout+
+XM1 vout+ vin+ net1 VSS sky130_fd_pr__nfet_01v8 L=0.15 W=10 nf=1 ad='int((nf+1)/2) * W/nf * 0.29' as='int((nf+2)/2) * W/nf * 0.29'
++ pd='2*int((nf+1)/2) * (W/nf + 0.29)' ps='2*int((nf+2)/2) * (W/nf + 0.29)' nrd='0.29 / W' nrs='0.29 / W' sa=0 sb=0 sd=0 mult=1 m=1
+XM2 net1 vbias VSS VSS sky130_fd_pr__nfet_01v8 L=0.5 W=20 nf=1 ad='int((nf+1)/2) * W/nf * 0.29' as='int((nf+2)/2) * W/nf * 0.29' pd='2*int((nf+1)/2) * (W/nf + 0.29)'
++ ps='2*int((nf+2)/2) * (W/nf + 0.29)' nrd='0.29 / W' nrs='0.29 / W' sa=0 sb=0 sd=0 mult=1 m=1
+XM3 net2 vbias VSS VSS sky130_fd_pr__nfet_01v8 L=0.5 W=20 nf=1 ad='int((nf+1)/2) * W/nf * 0.29' as='int((nf+2)/2) * W/nf * 0.29' pd='2*int((nf+1)/2) * (W/nf + 0.29)'
++ ps='2*int((nf+2)/2) * (W/nf + 0.29)' nrd='0.29 / W' nrs='0.29 / W' sa=0 sb=0 sd=0 mult=1 m=1
+XM4 vout- vin- net2 VSS sky130_fd_pr__nfet_01v8 L=0.15 W=10 nf=1 ad='int((nf+1)/2) * W/nf * 0.29' as='int((nf+2)/2) * W/nf * 0.29'
++ pd='2*int((nf+1)/2) * (W/nf + 0.29)' ps='2*int((nf+2)/2) * (W/nf + 0.29)' nrd='0.29 / W' nrs='0.29 / W' sa=0 sb=0 sd=0 mult=1 m=1
+XR1 vout+ VDD VSS sky130_fd_pr__res_high_po W=1 L=2 mult=1 m=1
+XR2 net3 VDD net4 sky130_fd_pr__res_high_po W=1 L=2 mult=1 m=1
+XR3 net1 net2 VSS sky130_fd_pr__res_high_po W=1 L=0.69 mult=1 m=1
+XC2 net2 net1 sky130_fd_pr__cap_mim_m3_1 W=13 L=13 MF=1 m=1
+.ends
+
+.GLOBAL GND
+.end

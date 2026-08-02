@@ -9,3 +9,9 @@ test/sim_build
 test/__pycache__/
 test/results.xml
 test/gate_level_netlist.v
+
+# --- simulation outputs & data dumps (regenerable from sources; kept out per CLAUDE.md VM rules) ---
+*.raw
+*.out
+xschem/vin.txt
+xschem/vip.txt
