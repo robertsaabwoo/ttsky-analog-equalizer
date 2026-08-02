@@ -1,11 +1,21 @@
 /*
- * Copyright (c) 2024 Your Name
+ * Copyright (c) 2026 robertsaabwoo
  * SPDX-License-Identifier: Apache-2.0
  */
 
 `default_nettype none
 
-module tt_um_example (
+// This is an analog project: the signal path (CTLE equalizer -> retiming
+// latch pair -> differential-to-single-ended amp -> inverter chain) lives
+// entirely in the xschem schematic / hand-drawn layout under ./xschem, not
+// in synthesizable RTL. ua[0]/ua[1] (vin+/vin-) and ua[2] (vbias) are wired
+// straight into that analog block, and its recovered digital clock output
+// is bonded directly to the uo_out[0] pad at the layout level.
+//
+// This module is intentionally left empty -- it exists only as a stub so
+// the Tiny Tapeout digital toolchain has a top module to instantiate, as is
+// standard practice for pure-analog Tiny Tapeout submissions.
+module tt_um_robertsaabwoo_ctle_clock_recovery (
     input  wire       VGND,
     input  wire       VDPWR,    // 1.8v power supply
 //    input  wire       VAPWR,    // 3.3v power supply
