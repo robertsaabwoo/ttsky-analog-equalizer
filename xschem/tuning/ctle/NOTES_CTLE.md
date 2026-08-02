@@ -607,3 +607,64 @@ sweeping is an `alterparam`, not an `alter`.
 5. **Switchable boost** (§C14.4) is now much less compelling: the pin RC is a
    fixed spec, not a per-board unknown, and one sizing covers the whole
    500 Ω/5 pF → 200 Ω/1.5 pF range at ≥ 0.43/0.745 UI. Recommend dropping it.
+
+---
+
+# §C23. END-TO-END: CTLE + CDR locks through the pad LPF (the merge gate)
+
+Session 2026-08-02. First time the CTLE and the CDR are simulated as **one loop**
+— the §C12 chain check stopped at the CTLE output and never fed the CDR. This is
+the gate the user set before promoting the CTLE to `main`.
+
+## Setup
+
+`tuning/e2e_ctle_cdr_tb.spice` + `tuning/e2e_blocks.inc`. The subckts were harvested
+from a **fresh** netlist of `CDR_tune_tb.sch` (the stale untracked `CDR_tune_tb.spice`
+had NO precharge x20 and the old dual-buffer clock — do not reuse it), so the CDR is
+the validated design: variant-E clock (`single_inverter_tune`), `x20
+vctrl_precharge_tune` on vctrl, the `_tune` PD hierarchy.
+
+Chain: `200 mVpp diff 0101 @ CM 0.9 V → 500 Ω/5 pF pad LPF on BOTH legs → CTLE_tune
+→ CDR_tune → recovered clock`. Small-signal input on purpose (C8: rail input is
+8.5 dB compressed and EQ can't show). CTLE straight into the CDR, no limiter between
+(user's choice — the point was to find out whether the CTLE's swing suffices).
+Guarded run (`safe_ngspice.sh`, 3 GB / 1200 s), tran 20p 1500n, exit 0.
+
+## Result — IT LOCKS (spec-worst channel, tt/27 °C)
+
+| quantity | value | note |
+|---|---|---|
+| lock frequency | **600.64 MHz** | +0.006 % vs the 600.6 Mb/s data |
+| vctrl (locked) | **0.791 V** | = the standalone lock point (§17e 0.792 V) → real lock |
+| vctrl dither | 33 mV pp | healthy bang-bang |
+| recovered clk swing | **1.870 V** | rail-to-rail (a dead VCO reads ~5 mV) |
+| precharge release | 126.5 ns | fired normally |
+| data at CTLE input | 63.7 mV pp diff | pad LPF crushed 200 mVpp → 64 mV (eye ~closed at the pad) |
+| CTLE output | **299 mV pp diff** | equalized back up ~4.7× (+13.5 dB) |
+
+The physics closes: channel loss at Nyquist ~13.7 dB, CTLE gain at Nyquist ~13.5 dB
+(§C18), net ≈ flat, and the CDR locks at the **same** vctrl/frequency it reaches with
+ideal full-rail data. The CTLE's 299 mV differential was enough to drive the
+Alexander PD — better than the static-eye estimate (§C22 232 mV / §12a's ~0.5 V
+latch threshold) suggested, because the PD samples the boosted transition swing.
+
+## What this does and does NOT establish
+
+**Does:** the CTLE is the enabler — a signal that is ~closed at the pad (64 mV) is
+equalized to a swing the CDR locks on, end to end, at 600.6 MHz. The two blocks are
+compatible as-drawn (CTLE out CM 1.265 V into the CDR data input) with no limiter.
+
+**Does NOT yet cover (before merge):**
+- only `rclk+` (rclkp) was `meas`'d; `rclk-` is complementary by the variant-E
+  inverter construction (§13h sum 1.796 V) but was not explicitly measured here —
+  add a `meas` on rclkm next run;
+- one power-up data polarity only (the precharge makes cold start
+  polarity-independent §17e/f, but the e2e case was not run both ways);
+- a 0101 clock pattern, not PRBS/CID — real data with runs (§16e covered CID for the
+  CDR alone with ideal data, not through the CTLE);
+- tt/27 °C only — no PVT on the combined loop;
+- 200 mVpp input; sensitivity (smaller input) not swept.
+
+Files: `tuning/e2e_ctle_cdr_tb.spice`, `tuning/e2e_parse.spice` (op/parse check),
+`tuning/e2e_blocks.inc` (regenerate the CDR part from a fresh `CDR_tune_tb.sch`
+netlist if the design changes).

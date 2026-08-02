@@ -1,0 +1,27 @@
+* PARSE / DC-OP check for the e2e CTLE+CDR deck — light (single op solve).
+* Confirms all 19 subckts resolve, ports match, nothing floats. NOT the real test.
+* (.op NaN spam is cosmetic — NOTES 16d.)
+.lib /home/ttuser/pdk/sky130A/libs.tech/ngspice/sky130.lib.spice tt
+.include /home/ttuser/pdk/sky130A/libs.ref/sky130_fd_sc_hd/spice/sky130_fd_sc_hd.spice
+.include e2e_blocks.inc
+.options method=gear reltol=0.001 abstol=1e-12
+
+.param vcm=0.9 amp=0.2 rpad=500 cpad=5p
+VDD Vdd 0 1.8
+VSS Vss 0 0
+Vb  vbias 0 0.9
+Vdraw draw 0 0.5
+Edinp dinp 0 vol='vcm + 0.5*amp*(v(draw)-0.5)'
+Edinm dinm 0 vol='vcm - 0.5*amp*(v(draw)-0.5)'
+Rpadp dinp cinp 'rpad'
+Cpadp cinp 0    'cpad'
+Rpadm dinm cinm 'rpad'
+Cpadm cinm 0    'cpad'
+x_ctle coutp coutm cinp cinm Vdd Vss vbias CTLE_tune
+x_cdr  Vdd Vss coutp coutm vbias rclkp rclkm CDR_tune
+
+.control
+  op
+  print v(cinp) v(cinm) v(coutp) v(coutm) v(x_cdr.net1) v(rclkp)
+.endc
+.end
