@@ -1,0 +1,50 @@
+* Does the ~2 dB that cmsens_tt.log promises for a higher input CM show up in
+* the eye?  Final sizing, spec-worst TT channel, tt/27C/1.8V.
+* 0.90 V is what every result up to C22 assumed; 1.10 V is the middle of the
+* plateau; 1.20 V is its peak but sits closer to the roll-off above 1.3 V.
+.lib /home/ttuser/pdk/sky130A/libs.tech/ngspice/sky130.lib.spice tt
+.include ctle_p2.inc
+.include prbs.inc
+
+.param vcm=0.9
+.param amp=0.2
+.param cload=50f
+
+VDD  VDD 0 1.8
+VSS  VSS 0 0
+Vb   vbias 0 0.9
+
+Esp  srcp 0 vol='vcm + amp*0.5*(v(dsrc)-0.5)'
+Esm  srcm 0 vol='vcm - amp*0.5*(v(dsrc)-0.5)'
+
+Rap srcp inap 500
+Ram srcm inam 500
+Cap inap 0 5p
+Cam inam 0 5p
+xta taoutp taoutm inap inam VDD VSS vbias ctle_p2
+Ctap taoutp 0 'cload'
+Ctam taoutm 0 'cload'
+
+.options method=gear reltol=1e-4 abstol=1e-13 vntol=1e-7
+
+.control
+  alterparam Win   = 20
+  alterparam Lload = 20
+  alterparam Ldeg  = 5.0
+  alterparam Wcap  = 18
+  foreach cm 0.90 1.05 1.10 1.20
+    alterparam vcm = $cm
+    reset
+    tran 10p 211.5n 0 20p
+    meas tran ocm AVG v(taoutp) from=100n to=211n
+    linearize
+    let ina = v(inap)-v(inam)
+    let ta  = v(taoutp)-v(taoutm)
+    wrdata tmp.dat ina ta
+    shell echo ""
+    shell echo "#EYE vcm $cm"
+    shell cat tmp.dat
+  end
+  shell rm -f tmp.dat
+.endc
+.end
