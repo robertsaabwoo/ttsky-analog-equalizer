@@ -1,6 +1,46 @@
 # Repository status — branch layout & the state of the real design files
 
-Last updated 2026-08-02.
+Last updated 2026-08-15.
+
+> **2026-08-15: the real design files now hold the validated design.** The
+> section below titled "The real design files still carry pre-validation tuning"
+> described the state *before* that promotion and is kept only as history. See
+> "Promotion, 2026-08-15" immediately below for what is now true.
+
+## Promotion, 2026-08-15
+
+Every validated block was copied out of the `tuning/` sandbox into its real name
+and its internal `*_tune.sym` references rewritten. The promotion was verified at
+**netlist** level, not by eye: `CDR.sch` was re-netlisted and compared against the
+validated `tuning/e2e_blocks.inc`, and **all 17 leaf subcircuits matched exactly**
+with an identical top-level instance list.
+
+Promoted: `CTLE`, `CDR`, `ring_oscillator`, `ring_inverter`, `diff_amp_inv`,
+`alexander_phase_detector`, `d_flip_flop`, `d_latch`, `robs_xor`,
+`inverter_buffer`, `tiny_pll_loop_filter{,_cap1,_cap2}`. New blocks with no
+previous real counterpart: **`single_inverter`**, **`vctrl_precharge`**.
+
+`tiny_pll_charge_pump` and `tiny_pll_bias_gen` were deliberately NOT touched —
+the charge pump is already taped out.
+
+Two consequences to be aware of:
+
+- **`CDR.sym` gained a `vbias` pin** (6 pins → 7). It is the only promoted block
+  whose interface changed. `full_tb.sch` and `demux_tb.sch` instantiate the old
+  6-pin `CDR.sym` and are now stale; they are development testbenches, not part
+  of the chip path, and were left alone.
+- The stale hand-edits in `stash@{0}` are now **definitively superseded**. Do not
+  pop them. They can be dropped once someone is confident nothing is wanted.
+
+### New top-level for tapeout
+
+`xschem/ctle_cdr_rx.sch` is the analog macro that Tiny Tapeout instantiates:
+`CTLE → CDR → two inverter chains`, with pins
+`vinp vinm vbias clkout_p clkout_n VDPWR VGND`. `ctle_cdr_rx_lvs.sch` is a
+one-instance wrapper that exists solely so xschem emits a `.subckt` for netgen
+(netlisting `ctle_cdr_rx.sch` directly makes it the top and emits no subckt).
+`src/project.v` instantiates `ctle_cdr_rx` as a blackbox and defines the pad
+wiring, which is what `mag/ make lvs` checks the layout against.
 
 ## Branch layout (after the 2026-08-02 reorganization)
 
@@ -14,7 +54,7 @@ Last updated 2026-08-02.
 Read `tuning/HANDOFF.md` and `tuning/NOTES.md` (CDR), and `tuning/ctle/NOTES_CTLE.md`
 (CTLE, on `ctle-tuning`) for the full history.
 
-## The real design files still carry pre-validation tuning — DO NOT trust them yet
+## HISTORY (pre-2026-08-15): the real design files carried pre-validation tuning
 
 The validated design lives in the **`tuning/` sandbox** (`*_tune.sch`), not in the
 promoted files at `xschem/*.sch`. The real files (`CDR.sch`, `CDR_tb.sch`,

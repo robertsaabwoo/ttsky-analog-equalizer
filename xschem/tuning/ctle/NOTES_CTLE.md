@@ -668,3 +668,109 @@ compatible as-drawn (CTLE out CM 1.265 V into the CDR data input) with no limite
 Files: `tuning/e2e_ctle_cdr_tb.spice`, `tuning/e2e_parse.spice` (op/parse check),
 `tuning/e2e_blocks.inc` (regenerate the CDR part from a fresh `CDR_tune_tb.sch`
 netlist if the design changes).
+
+---
+
+# §C24. Closing the C23 gaps: real data (PRBS7) and the second clock phase
+
+Session 2026-08-15. C23 left five things open before merge. This section closes
+the first two and turns the third into a **new, load-bearing open question**.
+
+## Setup
+
+`tuning/e2e_prbs_tb.spice` + `tuning/e2e_prbs.inc` (1250-bit PRBS7 PWL from
+`ctle/gen_prbs.py`, max run length 7 UI, verified). Same chain as C23 —
+200 mVpp diff at CM 0.9 V → 500 Ω/5 pF pad LPF on both legs → `CTLE` → `CDR` —
+but with **PRBS7 instead of 0101** and with `meas` on **both** recovered clock
+phases. `tran 20p 2000n` (not 1500n: the halved transition density was expected
+to slow acquisition). Analysis time **1451 s**.
+
+## Result
+
+| quantity | window | value | C23 (0101) |
+|---|---|---|---|
+| vctrl | 1.0-1.1 µs | 0.791 V | — |
+| vctrl | 1.8-1.9 µs | **0.828 V** | 0.791 V |
+| vctrl ripple | 1.8-1.9 µs | **161 mV pp** | 33 mV pp |
+| rclk+ swing | 1.8-1.9 µs | 1.867 V | 1.870 V |
+| rclk− swing | 1.8-1.9 µs | **1.929 V** | not measured |
+| rclk+ + rclk− , mean | 1.8-1.9 µs | 1.794 V | — |
+| rclk+ + rclk− , pk-pk | 1.8-1.9 µs | **2.201 V** | — |
+| rclk+ mean / rclk− mean | 1.8-1.9 µs | 0.619 V / 1.175 V | — |
+| data at CTLE input | 1.8-1.9 µs | 172 mV pp diff | 63.7 mV (0101) |
+| CTLE output | 1.8-1.9 µs | 636 mV pp diff | 299 mV (0101) |
+| precharge release | — | 126.6 ns | 126.5 ns |
+
+(The CTLE input/output swings are larger than C23's because PRBS7 contains long
+runs; a run of 7 lets the pad LPF settle to the rail, so the pk-pk over the
+window is the *low-frequency* swing, not the Nyquist swing C23 measured on 0101.
+These two numbers are not comparable — do not read 636 mV as "the CTLE got
+better".)
+
+## GAP 1 — CLOSED: rclk− exists, but it is not an instantaneous complement
+
+rclk− is real, rail-to-rail (1.93 V), and complementary **on average**: the sum
+of the two phases has a mean of 1.794 V, reproducing §13h's 1.796 V.
+
+But the mean was hiding the shape. **The sum swings 2.20 V pk-pk**, and the two
+phases have very different duty cycles — rclk+ sits high ~33 % of the time,
+rclk− ~61 %. They do not sum to 100 %, so there is both a duty-cycle error and a
+non-overlap between them.
+
+The cause is structural and was already on the open list as "proper differential
+slicer" (§13f, HANDOFF §5): rclk− is not generated differentially, it is
+`rclk+` pushed through `single_inverter` (`x12` in `CDR.sch`). It therefore
+inherits that inverter's propagation delay and threshold offset. §13h's
+average-sum check could never have caught this.
+
+**Consequence for the chip:** rclk− is usable as a second output and it does
+load the ring symmetrically, but it must NOT be documented as a clean
+complement, and nothing should be built that assumes a 50 % duty cycle on
+either phase.
+
+## GAP 3 — the loop does NOT settle on PRBS7 within 2 µs
+
+This is the important result, and it is a **negative** one.
+
+At 1.05 µs vctrl is 0.791 V — exactly the standalone lock point (§17e) and the
+C23 lock point. By 1.85 µs it has climbed to **0.828 V** and is dithering
+**161 mV pk-pk**, 5× the 33 mV of C23. A bang-bang loop's lock voltage is set by
+what the VCO needs to run at the baud rate, which is pattern-independent — so a
+*different* vctrl at 1.85 µs than at 1.05 µs means the loop is still moving, not
+that PRBS has a different lock point. **It is still acquiring at 2 µs.**
+
+The mechanism is credible: PRBS7 has ~50 % transition density against 0101's
+100 %, so the Alexander PD issues roughly half as many corrections per unit
+time, and its runs of up to 7 identical bits leave the charge pump unattended
+for ~11.7 ns at a stretch. The loop filter was deliberately shrunk ~10× (§16) to
+make acquisition possible at all — that same high loop bandwidth is what lets
+vctrl wander so far during a CID run. **The §16 cap shrink and CID tolerance are
+in direct tension, and §16e only tested CID for the CDR alone with ideal
+full-rail data.**
+
+### Trap: `meas ... RISE=<n>` measures wherever the n-th edge happens to be
+
+The frequency numbers this run first produced (599.59 / 599.86 MHz) looked like
+a slightly-low lock. They are not wrong, but they do not describe the window
+everything else was measured in: `RISE=600` lands at 600 × 1.665 ns ≈ **1.00 µs**,
+i.e. in the acquisition phase, while every other `meas` used 1800-1900 ns. Pick
+the edge index from the time you want: `n ≈ t_window / UI`. The deck now measures
+at RISE=1080/1140 and keeps the early pair as an explicit drift indicator.
+
+## What is now open
+
+1. **Does it lock on PRBS7 at all, and when?** Needs a longer transient (~3 µs,
+   est. 35-40 min) with the corrected measurement windows. **This is the real
+   merge gate now** — C23's "it locks" was established on a 0101 pattern, which
+   is the easiest possible input for a bang-bang PD.
+2. If it does not settle, the fix is a loop-filter re-balance: the §16 shrink was
+   sized against 0101. Re-deriving it against PRBS is a design change, not a
+   tuning tweak.
+3. C23 gaps still untouched: **both power-up polarities** and **input
+   sensitivity** (smaller than 200 mVpp). Both were deprioritised behind (1) —
+   there is little point characterising sensitivity of a loop whose settling is
+   unconfirmed.
+4. PVT on the combined loop — still untouched.
+
+Files: `tuning/e2e_prbs_tb.spice`, `tuning/e2e_prbs.inc` (generated),
+`tuning/e2e_prbs.log`.

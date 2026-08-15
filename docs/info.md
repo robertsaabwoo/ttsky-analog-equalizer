@@ -9,67 +9,114 @@ You can also include images in this folder and reference them in the markdown. E
 
 ## How it works
 
-This project is a fully analog front end that recovers a clean digital clock from a degraded differential
-analog input signal. The chain is captured in `xschem/CTLE_WITH_LATCH.sch` and is built out of four reusable
-sub-blocks:
+This is a fully analog **600 Mb/s receiver front end**: an equalizer that undoes the loss of the chip's own
+analog input path, followed by a clock-recovery loop that locks an on-chip oscillator to the incoming data
+stream. There is no reference clock anywhere on the chip — the output clock is generated from the data itself,
+which is why `clock_hz` is 0 and the harness `clk` pin is unused.
 
-1. **`CTLE.sch`** -- a continuous-time linear equalizer (differential pair with resistor/capacitor source
-   degeneration). It takes the differential input pair `vin+`/`vin-` and a `vbias` reference, and boosts the
-   high-frequency content that a lossy channel would otherwise attenuate, producing an equalized differential
-   output.
-2. **`d_latch.sch`** -- an analog differential latch. Two instances run in series on the CTLE's output (a
-   master/slave pair), retiming the equalized signal into a clean, full-swing differential clock.
-3. **`D2S_amp.sch`** -- a differential-to-single-ended amplifier that converts the retimed differential signal
-   down to one node.
-4. **`inverter_chain.sch`** -- a tapered inverter chain that squares up and buffers that node into a strong,
-   rail-to-rail digital output.
+The signal path is `ua[0]/ua[1] -> CTLE -> CDR -> inverter chains -> uo[0]/uo[1]`, drawn in
+`xschem/ctle_cdr_rx.sch`.
 
-The signal path used for the chip is: `CTLE -> latch -> latch (master/slave pair) -> D2S_amp -> inverter_chain`,
-which is the "vout0" path in `CTLE_WITH_LATCH.sch` (instances `x1 -> x4 -> x8 -> x2 -> x6`). A second, shorter
-path (`x1 -> x3 -> x5 -> x7`, "vout1", a single-latch version of the same idea) also exists in the schematic
-for comparison -- it is one latch stage "ahead" of the chip output and is not brought out to a pad.
+### 1. The CTLE (`xschem/CTLE.sch`)
 
-**Pinout:**
-- `ua[0]` (`vin+`) / `ua[1]` (`vin-`) -- differential analog input pair, driven straight into the CTLE.
-- `ua[2]` (`vbias`) -- external analog bias reference used by the CTLE, both latches, and the D2S amp.
-- `uo[0]` -- the recovered digital clock, driven by the inverter chain at the end of the vout0 path.
+A continuous-time linear equalizer: a differential pair with resistively and capacitively degenerated sources.
+The degeneration network puts a zero below the data's Nyquist frequency, so the stage's gain *rises* with
+frequency and cancels a channel that rolls off.
 
-**Known open item:** in `CTLE_WITH_LATCH.sch`, the latches' `clk+`/`clk-` inputs are currently driven by ideal
-pulse sources for simulation only -- they are not yet wired to a pin-derived signal on the real chip. Sourcing
-the latch clock (e.g. from the raw `vin+`/`vin-` pads, or elsewhere) is still open design work.
+The channel it has to cancel is not an external cable — it is the **Tiny Tapeout analog pin path itself**,
+which is specified at under 500 Ω of series resistance and under 5 pF of pad capacitance. That is a pole at
+about 64 MHz, well below the 300 MHz Nyquist frequency of 600 Mb/s data, and it costs roughly 13.7 dB at
+Nyquist. In simulation a 200 mV differential input arrives at the CTLE as only **64 mV** — the eye is
+essentially shut at the pad before any circuit has touched it. The CTLE is therefore load-bearing, not an
+optimization: it contributes about **+13.5 dB at Nyquist**, which very nearly exactly cancels the pin path.
 
-Note also that the resistor/capacitor network at the front of `CTLE_WITH_LATCH.sch` (which turns `vin+`/`vin-`
-into `vin+_bad`/`vin-_bad`) is a simulation-only model of a lossy channel used to stress-test the CTLE -- it is
-not part of the fabricated design. On the real chip, `ua[0]`/`ua[1]` connect directly to the CTLE's `vin+`/`vin-`
-pins.
+### 2. The CDR (`xschem/CDR.sch`)
 
-`src/project.v` is an empty stub module. This is a pure-analog project: the actual signal path lives in the
-hand-drawn `xschem`/layout, not in synthesizable RTL, so `uo_out[0]` is bonded directly to the inverter chain's
-output at the layout level rather than being driven by Verilog logic.
+A reference-less **bang-bang (Alexander) clock-and-data-recovery loop**:
 
-`xschem/demux.sch`, `xschem/demux_testbench.sch`, and `xschem/CTLE_testbench.sch` are simulation/exploration
-schematics used during development and are not part of the top-level signal path described above.
+- an **Alexander phase detector** — four differential D flip-flops (eight `d_latch` stages) and two XORs —
+  samples the equalized data on both clock edges and reports only whether the clock is *early* or *late*;
+- that early/late decision drives a **charge pump** into a **loop filter**, producing a control voltage
+  `vctrl`;
+- `vctrl` tunes a **five-stage differential ring oscillator**, whose output is fed back to the phase detector
+  as the sampling clock.
+
+The loop settles when the oscillator runs at exactly the data rate with its edges centred in the data eye.
+Because the phase detector is phase-only, the loop filter is deliberately about 10× smaller than a
+comparable PLL's — a bang-bang CDR legitimately wants the higher loop bandwidth, and with PLL-sized
+capacitors the control voltage drifts past the oscillator's usable range before the loop can acquire.
+
+A small **startup precharge cell** (`xschem/vctrl_precharge.sch`) seeds `vctrl` into the oscillator's active
+region for the first ~130 ns after power-up and then electrically removes itself. Without it, roughly half of
+all power-ups never acquired lock — the outcome depended on the incoming data's polarity at power-on. The
+seed is generated by a scaled replica of the ring oscillator's own tail device, so it tracks the oscillator
+over process, voltage and temperature instead of being a hard-coded voltage.
+
+### 3. Output buffering
+
+Both recovered clock phases are buffered to pads through tapered inverter chains. The second phase on `uo[1]`
+is not decorative: driving only one leg of a differential ring oscillator loads it asymmetrically.
+
+Note that `uo[1]` is an *inverted and delayed* copy of `uo[0]`, not a true differential complement — it is
+generated by passing the recovered clock through an inverter, so it carries that inverter's delay and
+threshold offset. In simulation the two phases sum to the supply on average, but they have noticeably
+different duty cycles (roughly 33 % and 61 % high). Do not build anything that assumes a 50 % duty cycle on
+either output, or that the two are exactly non-overlapping.
+
+### Simulated performance
+
+Verified end to end (`xschem/tuning/e2e_ctle_cdr_tb.spice`) with data driven through a worst-case
+500 Ω / 5 pF model of the analog pin path:
+
+| quantity | value |
+|---|---|
+| data rate | 600.6 Mb/s (UI 1.665 ns) |
+| recovered clock frequency | 600.64 MHz — a **full-rate** clock, one cycle per bit |
+| `vctrl` when locked | 0.791 V |
+| signal at the CTLE input (after the pad) | 64 mV differential |
+| signal at the CTLE output | 299 mV differential |
+| recovered clock swing | rail to rail |
+| CTLE eye, worst PVT corner (ss / 125 °C / 1.62 V) | 174 mV, 0.350 UI |
+| recovered clock jitter (CDR alone) | 0.68 % UI RMS |
+
+These end-to-end numbers were taken with an alternating 0101 input, which is the easiest pattern for a
+bang-bang phase detector because every bit is a transition. On a PRBS7 pattern — half the transition density,
+and runs of up to 7 identical bits — the loop is slower to settle and its control voltage dithers
+considerably more. Characterising settling on real data is ongoing work.
+
+**Known limitations:**
+
+- The ring oscillator cannot reach 600 MHz at 125 °C, or at a 1.62 V supply. The design is intended for room
+  temperature and a nominal 1.8 V supply; this limit is understood and accepted rather than fixed.
+- Settling time and jitter on patterns with long runs of identical bits have not been fully characterised.
 
 ## How to test
 
-The design is verified in ngspice using the simulation schematics in `xschem/`:
+On hardware:
 
-1. Open `xschem/CTLE_WITH_LATCH.sch` (the full chain: CTLE + latch pair + D2S amp + inverter chain) in xschem.
-2. Run the embedded `.control` block (`tran 10p 20n`), which drives `vin+`/`vin-` with a degraded/noisy
-   differential pulse pair (through the on-chip-lossy-channel stimulus and `TRNOISE` sources) and `vbias` with
-   a fixed 0.9 V reference.
-3. Probe the `vout0` net (chip output path) and confirm it is a clean, full-swing (0 V / 1.8 V) square wave
-   despite the degraded input, i.e. that the CTLE + latch pair successfully "recreated" a clock from the analog
-   input.
-4. `xschem/CTLE_testbench.sch` isolates just the CTLE + a single D2S/inverter stage for faster iteration on the
-   equalizer alone.
+1. Hold `ua[2]` (`vbias`) at a steady **0.9 V**. A bench supply or a clean resistor divider is fine; it draws
+   almost no current.
+2. Drive `ua[0]` / `ua[1]` with a **differential 600 Mb/s** signal — a PRBS pattern or an alternating 0101
+   pattern both work — with a common mode of about **0.9 V** and a swing of roughly **200 mV differential**.
+   Keep the swing **below about 400 mVpp**: the input pair compresses above that, and a compressed input
+   cannot be equalized.
+3. Watch `uo[0]` on a scope or a fast counter. When the loop is locked it is a rail-to-rail square wave at the
+   **bit rate** — about **600 MHz** for 600 Mb/s data, since this is a full-rate CDR. `uo[1]` should be its
+   inverse, at the same frequency but not the same duty cycle.
+4. Lock takes a few hundred nanoseconds after power-up, and does not depend on which polarity the data
+   happens to be in when the supply comes up.
 
-On real hardware, apply a differential clock-like signal (through a lossy channel, cable, or attenuator if you
-want to reproduce the "bad channel" stress test) to `ua[0]`/`ua[1]`, hold `ua[2]` at a steady ~0.9 V bias, and
-observe a clean recovered digital clock on `uo_out[0]`.
+Sweeping the input data rate slowly around 600 Mb/s and watching where `uo[0]` stops tracking maps out the
+loop's lock range. Because the oscillator's reach is the limiting factor, expect that range to narrow as the
+die heats up.
+
+In simulation, the decks under `xschem/tuning/` reproduce all of the above; `e2e_ctle_cdr_tb.spice` is the
+full chain and `ctle/` holds the equalizer-only AC, eye and PVT decks. All of them must be run through
+`xschem/tuning/safe_ngspice.sh`, which caps memory and wall-clock time.
 
 ## External hardware
 
-- A differential signal source / function generator (or two single-ended sources) to drive `ua[0]`/`ua[1]`.
-- A stable ~0.9 V reference (e.g. a bench supply or resistor divider) for `ua[2]` (`vbias`).
-- An oscilloscope or logic analyzer to observe the recovered clock on `uo_out[0]`.
+- A differential pattern generator (or two synchronized single-ended sources) capable of 600 Mb/s for
+  `ua[0]` / `ua[1]`.
+- A stable ~0.9 V bias reference for `ua[2]`.
+- An oscilloscope with at least ~1 GHz of bandwidth, or a frequency counter, on `uo[0]`.

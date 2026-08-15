@@ -64,11 +64,7 @@ lab=Vss}
 N 1640 -110 1640 -100 {
 lab=Vss}
 N 1220 -40 1260 -40 {
-lab=#net4}
-N 1220 -40 1220 10 {
-lab=#net4}
-N 1220 10 1260 10 {
-lab=#net4}
+lab=vbias}
 N 2200 -80 2210 -80 {
 lab=Vdd}
 N 2200 -80 2200 -60 {
@@ -103,22 +99,24 @@ N 2030 390 2030 440 {
 lab=#net1}
 N 2030 440 2190 440 {
 lab=#net1}
-N 960 250 980 250 {
-lab=vbias}
-N 980 310 980 360 {
+N 2490 480 2590 480 {
+lab=#net4}
+N 2490 500 2590 500 {
+lab=#net5}
+N 2890 480 2930 480 {
+lab=Vdd}
+N 2930 460 2930 480 {
+lab=Vdd}
+N 2890 500 2970 500 {
 lab=Vss}
-N 980 200 980 250 {
-lab=vbias}
-N 980 150 980 200 {
-lab=vbias}
-N 930 150 980 150 {
-lab=vbias}
-N 930 110 930 150 {
-lab=vbias}
-N 890 250 900 250 {
-lab=#net5}
-N 890 250 890 270 {
-lab=#net5}
+N 2970 490 2970 500 {
+lab=Vss}
+N 1850 250 2030 250 {
+lab=#net1}
+N 1550 230 1470 230 {
+lab=Vdd}
+N 1550 270 1470 270 {
+lab=Vss}
 C {tiny_pll_charge_pump.sym} 1840 -50 0 0 {name=x6}
 C {devices/lab_wire.sym} 1790 -280 0 0 {name=p14 sig_type=std_logic lab=Vdd
 }
@@ -141,7 +139,8 @@ C {devices/lab_wire.sym} 1660 -180 0 1 {name=p49 sig_type=std_logic lab=bias_p
 }
 C {devices/lab_wire.sym} 1690 80 0 0 {name=p37 sig_type=std_logic lab=bias_n
 }
-C {devices/opin.sym} 2490 500 0 0 {name=p17 lab=rclk-}
+C {devices/lab_wire.sym} 2890 520 0 0 {name=p17b sig_type=std_logic lab=clkraw-
+}
 C {devices/iopin.sym} 900 -150 2 1 {name=p38 lab=Vdd
 
 
@@ -164,7 +163,8 @@ C {devices/lab_wire.sym} 2160 -70 0 0 {name=p11 sig_type=std_logic lab=Vdd
 }
 C {devices/lab_wire.sym} 2160 -30 0 0 {name=p12 sig_type=std_logic lab=Vss
 }
-C {devices/opin.sym} 2490 480 0 0 {name=p13 lab=rclk+}
+C {devices/lab_wire.sym} 2890 540 0 0 {name=p13b sig_type=std_logic lab=clkraw+
+}
 C {devices/lab_wire.sym} 1260 -120 0 0 {name=p15 sig_type=std_logic lab=rclk+
 }
 C {devices/lab_wire.sym} 1260 -80 0 0 {name=p16 sig_type=std_logic lab=rclk-
@@ -174,22 +174,33 @@ C {devices/lab_wire.sym} 2530 420 0 0 {name=p3 sig_type=std_logic lab=Vdd
 C {devices/lab_wire.sym} 2570 450 0 0 {name=p39 sig_type=std_logic lab=Vss
 }
 C {ring_oscillator.sym} 2340 470 0 0 {name=x1}
-C {devices/vsource.sym} 890 300 0 0 {name=V5 value=0.9 savecurrent=false}
-C {devices/gnd.sym} 890 330 0 0 {name=l5 lab=GND
-value=vbias}
-C {devices/lab_wire.sym} 930 110 0 0 {name=p28 sig_type=std_logic lab=vbias
+C {devices/ipin.sym} 1220 -40 0 0 {name=p4 lab=vbias
 }
-C {devices/res.sym} 930 250 1 0 {name=R8
-value=500
-footprint=1206
-device=resistor
-m=1}
-C {devices/capa.sym} 980 280 0 0 {name=C5
-m=1
-value=1p
-footprint=1206
-device="ceramic capacitor"}
-C {devices/lab_wire.sym} 980 360 0 0 {name=p29 sig_type=std_logic lab=Vss
+C {diff_amp_inv.sym} 2740 510 0 0 {name=x4}
+C {devices/lab_wire.sym} 2590 520 0 0 {name=p2 sig_type=std_logic lab=Vdd
 }
-C {devices/lab_wire.sym} 1260 10 0 1 {name=p2 sig_type=std_logic lab=vbias
+C {devices/lab_wire.sym} 2930 460 0 0 {name=p6 sig_type=std_logic lab=Vdd
+}
+C {devices/lab_wire.sym} 2970 490 0 0 {name=p8 sig_type=std_logic lab=Vss
+}
+C {inverter_buffer.sym} 3200 700 0 0 {name=x11}
+C {devices/lab_wire.sym} 3050 680 0 0 {name=p70 sig_type=std_logic lab=clkraw+
+}
+C {devices/lab_wire.sym} 3350 680 0 0 {name=p71 sig_type=std_logic lab=Vdd
+}
+C {devices/lab_wire.sym} 3350 700 0 0 {name=p72 sig_type=std_logic lab=Vss
+}
+C {devices/opin.sym} 3350 720 0 0 {name=p13 lab=rclk+}
+C {single_inverter.sym} 3200 820 0 0 {name=x12}
+C {devices/lab_wire.sym} 3050 800 0 0 {name=p73 sig_type=std_logic lab=rclk+
+}
+C {devices/lab_wire.sym} 3350 800 0 0 {name=p74 sig_type=std_logic lab=Vdd
+}
+C {devices/lab_wire.sym} 3350 820 0 0 {name=p75 sig_type=std_logic lab=Vss
+}
+C {devices/opin.sym} 3350 840 0 0 {name=p17 lab=rclk-}
+C {vctrl_precharge.sym} 1700 250 0 0 {name=x20}
+C {devices/lab_wire.sym} 1470 230 0 0 {name=p80 sig_type=std_logic lab=Vdd
+}
+C {devices/lab_wire.sym} 1470 270 0 0 {name=p81 sig_type=std_logic lab=Vss
 }

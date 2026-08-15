@@ -26,7 +26,7 @@ C {devices/lab_wire.sym} -80 30 0 1 {name=p10 sig_type=std_logic lab=plus}
 C {devices/noconn.sym} 0 -240 0 1 {name=l4}
 C {sky130_fd_pr/nfet3_01v8.sym} -20 30 0 0 {name=MCAP
 W=4
-L=6
+L=0.6
 body=VNB
 nf=1
 mult=6

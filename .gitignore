@@ -15,3 +15,6 @@ test/gate_level_netlist.v
 *.out
 xschem/vin.txt
 xschem/vip.txt
+xschem/tuning/*.log
+xschem/tuning/ctle/*.log
+xschem/simulation/

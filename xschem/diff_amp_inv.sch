@@ -160,14 +160,14 @@ C {devices/ipin.sym} -400 70 0 1 {name=p20 lab=vin+
 }
 C {sky130_fd_pr/res_high_po.sym} -450 -60 0 0 {name=R3
 W=0.5
-L=1
+L=10
 model=res_high_po
 spiceprefix=X
 mult=1}
 C {devices/lab_wire.sym} -470 -60 0 0 {name=p21 sig_type=std_logic lab=VSS}
 C {sky130_fd_pr/res_high_po.sym} -660 -60 0 0 {name=R4
 W=0.5
-L=1
+L=10
 model=res_high_po
 spiceprefix=X
 mult=1}
@@ -222,14 +222,14 @@ spiceprefix=X
 }
 C {sky130_fd_pr/res_high_po.sym} 90 -100 0 0 {name=R1
 W=1
-L=1.75
+L=17.5
 model=res_high_po
 spiceprefix=X
 mult=1}
 C {devices/lab_wire.sym} 70 -100 0 0 {name=p12 sig_type=std_logic lab=VSS}
 C {sky130_fd_pr/res_high_po.sym} -120 -100 0 0 {name=R2
 W=1
-L=1.75
+L=17.5
 model=res_high_po
 spiceprefix=X
 mult=1}

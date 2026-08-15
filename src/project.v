@@ -5,29 +5,69 @@
 
 `default_nettype none
 
-// This is an analog project: the signal path (CTLE equalizer -> retiming
-// latch pair -> differential-to-single-ended amp -> inverter chain) lives
-// entirely in the xschem schematic / hand-drawn layout under ./xschem, not
-// in synthesizable RTL. ua[0]/ua[1] (vin+/vin-) and ua[2] (vbias) are wired
-// straight into that analog block, and its recovered digital clock output
-// is bonded directly to the uo_out[0] pad at the layout level.
+// ---------------------------------------------------------------------------
+// Analog receiver front end: CTLE + reference-less bang-bang CDR.
 //
-// This module is intentionally left empty -- it exists only as a stub so
-// the Tiny Tapeout digital toolchain has a top module to instantiate, as is
-// standard practice for pure-analog Tiny Tapeout submissions.
+// This is a custom-GDS analog project (see .github/workflows/gds.yaml, which
+// uses tt-gds-action/custom_gds).  The signal path is hand-drawn in
+// xschem/magic, not synthesized -- so this file is *structural blackbox*
+// Verilog whose only jobs are:
+//
+//   1. give the Tiny Tapeout harness a top module with the standard port list;
+//   2. describe the pad <-> analog-macro wiring, so `make lvs` in mag/ can
+//      check the layout against it.  netgen reads this file as the source-side
+//      top and picks up `ctle_cdr_rx` from the xschem netlist
+//      (xschem/simulation/ctle_cdr_rx_lvs.spice) -- see mag/tcl/lvs_netgen.tcl.
+//
+// The names and wires below must therefore match the intended layout exactly.
+// ---------------------------------------------------------------------------
 module tt_um_robertsaabwoo_ctle_clock_recovery (
     input  wire       VGND,
     input  wire       VDPWR,    // 1.8v power supply
-//    input  wire       VAPWR,    // 3.3v power supply
     input  wire [7:0] ui_in,    // Dedicated inputs
     output wire [7:0] uo_out,   // Dedicated outputs
     input  wire [7:0] uio_in,   // IOs: Input path
     output wire [7:0] uio_out,  // IOs: Output path
     output wire [7:0] uio_oe,   // IOs: Enable path (active high: 0=input, 1=output)
     inout  wire [7:0] ua,       // Analog pins, only ua[5:0] can be used
-    input  wire       ena,      // always 1 when the design is powered, so you can ignore it
-    input  wire       clk,      // clock
+    input  wire       ena,      // always 1 when the design is powered
+    input  wire       clk,      // clock (unused: the clock is RECOVERED, not supplied)
     input  wire       rst_n     // reset_n - low to reset
 );
 
+  // The whole receiver.  ua[0]/ua[1] are the differential input pair straight
+  // off the analog mux; ua[2] is the external bias reference.  Both recovered
+  // clock phases are buffered out -- clkout_n is not decorative, it keeps the
+  // ring oscillator's two legs symmetrically loaded.
+  ctle_cdr_rx u_rx (
+      .vinp    (ua[0]),
+      .vinm    (ua[1]),
+      .vbias   (ua[2]),
+      .clkout_p(uo_out[0]),
+      .clkout_n(uo_out[1]),
+      .VDPWR   (VDPWR),
+      .VGND    (VGND)
+  );
+
+  // uo_out[7:2], uio_* and the digital inputs are physically unconnected in the
+  // layout -- this is an analog tile with no digital logic in it.  They are left
+  // undriven here rather than tied off, so that this Verilog keeps matching a
+  // layout that contains no tie cells.
+
 endmodule
+
+// Blackbox declaration of the hand-laid-out analog macro.  Its contents come
+// from the GDS; for LVS the matching subcircuit comes from the xschem netlist.
+(* blackbox *)
+module ctle_cdr_rx (
+    input  wire vinp,      // ua[0]  differential input +
+    input  wire vinm,      // ua[1]  differential input -
+    input  wire vbias,     // ua[2]  external bias reference (~0.9 V)
+    output wire clkout_p,  // recovered clock, true
+    output wire clkout_n,  // recovered clock, complement
+    inout  wire VDPWR,
+    inout  wire VGND
+);
+endmodule
+
+`default_nettype wire

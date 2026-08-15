@@ -85,8 +85,8 @@ spiceprefix=X
 }
 C {sky130_fd_pr/nfet_01v8.sym} -70 50 0 0 {name=M4
 L=0.15
-W=3
-nf=2 
+W=7
+nf=2
 mult=1
 ad="'int((nf+1)/2) * W/nf * 0.29'" 
 pd="'2*int((nf+1)/2) * (W/nf + 0.29)'"

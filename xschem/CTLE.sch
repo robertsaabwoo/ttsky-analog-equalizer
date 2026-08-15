@@ -68,8 +68,8 @@ lab=#net1}
 N -250 -20 -130 -20 {
 lab=#net1}
 N -250 60 -250 80 {
-lab=#net3}
-N -250 80 -130 80 {
+lab=sdegm}
+N -180 80 -130 80 {
 lab=#net3}
 N -130 70 -130 80 {
 lab=#net3}
@@ -78,12 +78,8 @@ lab=#net3}
 N -180 130 -130 130 {
 lab=#net3}
 N 60 -20 130 -20 {
-lab=#net2}
-N 130 -20 130 -0 {
-lab=#net2}
+lab=sdegm}
 N 60 70 130 70 {
-lab=#net3}
-N 130 60 130 70 {
 lab=#net3}
 N 100 70 100 130 {
 lab=#net3}
@@ -109,7 +105,7 @@ C {devices/opin.sym} 90 -140 0 0 {name=p8 lab=vout-}
 C {devices/opin.sym} -160 -150 0 1 {name=p12 lab=vout+}
 C {sky130_fd_pr/nfet_01v8.sym} -150 -100 0 0 {name=M1
 L=0.3
-W=10
+W=20
 nf=1 
 mult=1
 ad="'int((nf+1)/2) * W/nf * 0.29'" 
@@ -136,7 +132,7 @@ spiceprefix=X
 }
 C {sky130_fd_pr/nfet_01v8.sym} 80 -100 0 1 {name=M4
 L=0.3
-W=10
+W=20
 nf=1 
 mult=1
 ad="'int((nf+1)/2) * W/nf * 0.29'" 
@@ -150,33 +146,34 @@ spiceprefix=X
 }
 C {sky130_fd_pr/res_high_po.sym} -130 -190 0 0 {name=R1
 W=1
-L=16
+L=20
 model=res_high_po
 spiceprefix=X
 mult=1}
 C {sky130_fd_pr/res_high_po.sym} 60 -210 0 0 {name=R2
 W=1
-L=16
+L=20
 model=res_high_po
 spiceprefix=X
 mult=1}
 C {sky130_fd_pr/res_high_po.sym} -130 30 2 0 {name=R3
 W=1
-L=0.69
+L=5.0
 model=res_high_po
 spiceprefix=X
 mult=1}
 C {devices/lab_wire.sym} 40 -210 0 0 {name=p13 sig_type=std_logic lab=VSS}
 C {devices/lab_wire.sym} -150 -190 0 0 {name=p14 sig_type=std_logic lab=VSS}
-C {sky130_fd_pr/cap_mim_m3_1.sym} -250 30 0 0 {name=C2 model=cap_mim_m3_1 W=13 L=13 MF=1 spiceprefix=X}
+C {sky130_fd_pr/cap_mim_m3_1.sym} -250 30 0 0 {name=CS model=cap_mim_m3_1 W=18 L=18 MF=1 spiceprefix=X}
 C {devices/lab_wire.sym} -110 30 0 1 {name=p6 sig_type=std_logic lab=VSS}
 C {sky130_fd_pr/res_high_po.sym} 60 30 2 0 {name=R4
 W=1
-L=0.69
+L=5.0
 model=res_high_po
 spiceprefix=X
 mult=1}
-C {sky130_fd_pr/cap_mim_m3_1.sym} 130 30 0 0 {name=C1 model=cap_mim_m3_1 W=13 L=13 MF=1 spiceprefix=X}
 C {devices/lab_wire.sym} 80 30 0 1 {name=p9 sig_type=std_logic lab=VSS}
 C {devices/lab_wire.sym} 40 -100 0 0 {name=p10 sig_type=std_logic lab=VSS}
 C {devices/lab_wire.sym} -100 -100 0 1 {name=p15 sig_type=std_logic lab=VSS}
+C {devices/lab_wire.sym} -250 80 0 0 {name=p16 sig_type=std_logic lab=sdegm}
+C {devices/lab_wire.sym} 130 -20 0 0 {name=p17 sig_type=std_logic lab=sdegm}

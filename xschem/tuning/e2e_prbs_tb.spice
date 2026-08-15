@@ -1,0 +1,101 @@
+* =====================================================================
+*  C24-A: END-TO-END with REAL DATA (PRBS7), and both recovered clocks
+*
+*     PRBS7 diff data -> TT analog-pin LPF (500 ohm / 5 pF, both legs)
+*     -> CTLE_tune -> CDR_tune -> rclk+ / rclk-
+*
+*  Closes C23 open items (1) rclk- never measured and (3) 0101 only.
+*  PRBS7 (x^7+x^6+1) has runs up to 7 UI, so the Alexander PD sees real
+*  consecutive-identical-digit stress AND a lower transition density than
+*  the 0101 of C23 -- both make acquisition harder, on purpose.
+*
+*  tran is 2000n (not the 1500n of C23) because the reduced transition
+*  density slows acquisition; measure window is 1800-1900n.
+*
+*  HEAVY: ~6-7 min.  RUN ONLY under safe_ngspice.sh.  save-limited.
+* =====================================================================
+.lib /home/ttuser/pdk/sky130A/libs.tech/ngspice/sky130.lib.spice tt
+.include /home/ttuser/pdk/sky130A/libs.ref/sky130_fd_sc_hd/spice/sky130_fd_sc_hd.spice
+.include e2e_blocks.inc
+.include e2e_prbs.inc
+.options method=gear reltol=0.001 abstol=1e-12
+
+.param vcm=0.9          ; CTLE input common mode (CDR data CM; see C7)
+.param amp=0.2          ; 200 mVpp differential at the source (linear, C8)
+.param pol=1            ; data polarity (+1 = same as C23)
+.param rpad=500 cpad=5p ; TT analog-pin spec worst case -> pole 63.7 MHz (C16)
+
+VDD Vdd 0 1.8
+VSS Vss 0 0
+Vb  vbias 0 0.9
+
+* --- PRBS7 data from e2e_prbs.inc: `Vdata dsrc 0 PWL(...)`, 0/1 levels ---
+Edinp dinp 0 vol='vcm + pol*0.5*amp*(v(dsrc)-0.5)'
+Edinm dinm 0 vol='vcm - pol*0.5*amp*(v(dsrc)-0.5)'
+
+* --- TinyTapeout pad LPF on BOTH legs: series R (mux+pad) + shunt C (pad) ---
+Rpadp dinp cinp 'rpad'
+Cpadp cinp 0    'cpad'
+Rpadm dinm cinm 'rpad'
+Cpadm cinm 0    'cpad'
+
+* --- CTLE_tune: (vout+ vout- vin+ vin- VDD VSS vbias) ---
+x_ctle coutp coutm cinp cinm Vdd Vss vbias CTLE_tune
+
+* --- CDR_tune: (Vdd Vss vin+ vin- vbias rclk+ rclk-) ---
+x_cdr Vdd Vss coutp coutm vbias rclkp rclkm CDR_tune
+
+* --- POR cap discharged at t=0 so the precharge one-shot can fire (NOTES 19a) ---
+.ic v(x_cdr.x20.nrc)=0
+.op
+
+.control
+  save v(x_cdr.net1) v(rclkp) v(rclkm) v(coutp) v(coutm) v(cinp) v(cinm) v(x_cdr.x20.pre)
+  tran 20p 2000n
+  let vctrl  = v(x_cdr.net1)
+  let ctle_d = v(coutp)-v(coutm)
+  let cin_d  = v(cinp)-v(cinm)
+  let rsum   = v(rclkp)+v(rclkm)
+
+* --- did the loop lock? ---
+  meas tran vctrl_lock AVG v(x_cdr.net1) FROM=1800n TO=1900n
+  meas tran vctrl_ripp PP  v(x_cdr.net1) FROM=1800n TO=1900n
+* settled, or still drifting?  compare an earlier window
+  meas tran vctrl_early AVG v(x_cdr.net1) FROM=1000n TO=1100n
+  meas tran t_release  WHEN v(x_cdr.x20.pre)=0.9 FALL=1
+
+* --- BOTH recovered clocks (C23 gap 1) ---
+  meas tran rclkp_swing PP  v(rclkp) FROM=1800n TO=1900n
+  meas tran rclkm_swing PP  v(rclkm) FROM=1800n TO=1900n
+  meas tran rclkp_avg   AVG v(rclkp) FROM=1800n TO=1900n
+  meas tran rclkm_avg   AVG v(rclkm) FROM=1800n TO=1900n
+* complementarity: if rclk- is a clean inverse, the sum is near-constant
+  meas tran rsum_avg AVG rsum FROM=1800n TO=1900n
+  meas tran rsum_pp  PP  rsum FROM=1800n TO=1900n
+
+* --- what the CTLE handed the CDR ---
+  meas tran cin_swing  PP cin_d  FROM=1800n TO=1900n
+  meas tran ctle_swing PP ctle_d FROM=1800n TO=1900n
+
+* --- recovered-clock frequency, measured on EACH leg independently ---
+*
+*  TRAP (cost a 24-minute run): counting RISE=600 puts the measurement at
+*  600 * 1.665 ns = 1.00 us, i.e. in the ACQUISITION window, NOT in the
+*  1800-1900 ns window everything else is measured in.  The edge index has
+*  to be chosen to land where you actually want to measure:
+*      edge index ~= t_window / UI = 1800 ns / 1.665 ns ~= 1081
+  meas tran p1080 WHEN v(rclkp)=0.9 RISE=1080
+  meas tran p1140 WHEN v(rclkp)=0.9 RISE=1140
+  meas tran m1080 WHEN v(rclkm)=0.9 RISE=1080
+  meas tran m1140 WHEN v(rclkm)=0.9 RISE=1140
+  let fp_MHz = 60/(p1140-p1080)/1e6
+  let fm_MHz = 60/(m1140-m1080)/1e6
+  print fp_MHz
+  print fm_MHz
+* keep the early one too, so the drift between them is visible in one run
+  meas tran p600 WHEN v(rclkp)=0.9 RISE=600
+  meas tran p660 WHEN v(rclkp)=0.9 RISE=660
+  let fp_early_MHz = 60/(p660-p600)/1e6
+  print fp_early_MHz
+.endc
+.end

@@ -3,7 +3,7 @@ project:
   title:        "Analog CTLE Clock Recovery"      # Project title
   author:       ""      # Your name -- TODO: fill in
   discord:      ""      # Your discord username, for communication and automatically assigning you a Tapeout role (optional)
-  description:  "A continuous-time linear equalizer (CTLE) and retiming-latch chain that reconstructs a clean digital clock from a degraded differential analog input"
+  description:  "A 600 Mb/s analog receiver front end: a continuous-time linear equalizer (CTLE) that undoes the loss of the analog pin path, feeding a reference-less bang-bang (Alexander) clock-and-data-recovery loop that locks its ring oscillator to the incoming data and outputs the recovered clock"
   language:     "Analog" # other examples include Verilog, Amaranth, VHDL, etc
   clock_hz:     0       # Clock frequency in Hz (0: no on-chip digital clock -- clock is recovered from the analog input itself)
 
@@ -35,8 +35,8 @@ pinout:
   ui[7]: ""
 
   # Outputs
-  uo[0]: "Recovered digital clock (CTLE -> retiming latch pair -> diff-to-single amp -> inverter chain)"
-  uo[1]: ""
+  uo[0]: "Recovered clock, true phase (CTLE -> CDR ring oscillator -> inverter chain). ~600 MHz when locked to 600 Mb/s data"
+  uo[1]: "Recovered clock, inverted phase (an inverted+delayed copy of uo[0], not a true complement -- duty cycle differs). Also keeps the ring oscillator symmetrically loaded"
   uo[2]: ""
   uo[3]: ""
   uo[4]: ""
@@ -57,7 +57,7 @@ pinout:
   # Analog pins - make sure to also set "analog_pins" above, else the pins won't be connected
   ua[0]: "vin+ : differential analog input (positive) to the CTLE"
   ua[1]: "vin- : differential analog input (negative) to the CTLE"
-  ua[2]: "vbias : external analog bias reference for the CTLE / latch / D2S bias network"
+  ua[2]: "vbias : external analog bias reference (~0.9 V) for the CTLE tail and the CDR phase-detector latches"
   ua[3]: ""
   ua[4]: ""
   ua[5]: ""
