@@ -29,8 +29,9 @@ which very nearly exactly cancels that, and the CDR then locks at 600.64 MHz.
 
 On real data (PRBS7, with runs of up to seven identical bits) the loop still
 acquires, but takes about 3x longer and settles with ~2.8x the residual control
-voltage ripple — traced to the charge pump's up/down current mismatch leaking
-onto the loop filter during runs of identical bits. The open question is now
+voltage ripple. That is inherent to a bang-bang loop — during a run of identical
+bits there are no transitions, so the loop is briefly blind and phase error
+accumulates before it can be corrected. The open question is now
 **jitter**: how much sampling-phase error that ripple produces has not been
 measured. See `xschem/tuning/ctle/NOTES_CTLE.md` §C24-§C25.
 

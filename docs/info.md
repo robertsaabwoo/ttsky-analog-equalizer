@@ -83,9 +83,9 @@ Those figures are for an alternating 0101 input, the easiest pattern for a bang-
 every bit is a transition. On a PRBS7 pattern — half the transition density, and runs of up to seven identical
 bits — the loop still acquires, but it takes about **3× longer** (roughly 3 µs rather than 1 µs), overshoots
 its final control voltage by ~37 mV on the way, and settles with ~2.8× the residual control-voltage ripple
-(94 mV versus 34 mV). Both effects trace to the charge pump: during a run of identical bits the phase
-detector's up and down outputs assert together, which turns both pump legs on and leaves their current
-mismatch flowing onto the loop filter.
+(94 mV versus 34 mV). This is inherent to a bang-bang loop rather than a defect: each phase-detector decision
+moves the control voltage by a fixed step, and during a run of identical bits there are no transitions, so the
+loop is briefly blind and phase error accumulates before it can be corrected.
 
 **Known limitations:**
 

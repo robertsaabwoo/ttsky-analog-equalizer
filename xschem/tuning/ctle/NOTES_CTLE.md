@@ -1031,3 +1031,63 @@ Caveat on all four `STILL MOVING` verdicts in this batch: they come from four
 100 ns averages 400-900 ns apart, which is a very coarse probe of a loop that
 wanders slowly. They are enough to rank B (quiet) against D (wandering), and not
 enough for much else. §C26 measures phase error properly.
+
+## C25-E: the charge-pump hypothesis is WRONG — measured, and it fails by 80×
+
+`cp_mismatch.spice`, holding the pump output at the 0.791 V lock point:
+
+| state | current |
+|---|---|
+| both legs OFF (`up=down=0`) | **44.9 pA** |
+| UP only (`up=1, down=0`) | +1.263 µA |
+| DOWN only (`up=0, down=1`) | −1.284 µA |
+| **both ON (`up=down=1`, the CID case)** | **−20.6 nA** |
+
+The structural half of §C25 was right: both-off is clean (45 pA), and both-on
+does leave a residual. **The quantitative half was badly wrong.** The mismatch is
+20.6 nA — **1.6 % of the leg current**, not the ~1.7 µA I predicted. Over a 7-UI
+run on ~121 fF that moves vctrl by
+
+    ΔV = 20.6 nA × 11.7 ns / 121 fF = **2.0 mV**
+
+against the 161 mV actually observed in §C24. **The hypothesis accounts for 1.2 %
+of the effect and is refuted.** The charge pump is well matched and needs no
+defending; it is not the problem.
+
+(It is also worth noting the mismatch changes sign across the range — +2.3 nA at
+0.65 V, −20.6 nA at 0.791 V, −42.5 nA at 0.95 V — so the pump is perfectly
+balanced somewhere near 0.66 V and slightly net-down at the lock point.)
+
+### What actually sets the dither: bang-bang quantisation
+
+The real mechanism is the ordinary one, and the numbers fall out immediately.
+Each phase-detector decision dumps one leg's current for about one UI:
+
+    ΔV per update = Icp × UI / C = 1.27 µA × 1.665 ns / 121 fF ≈ 17 mV
+
+A bang-bang loop at lock hunts by ±1 update, so the expected ripple is ~2× that,
+**≈ 35 mV pk-pk — against 33.7 mV measured on 0101 (§C25-A).** Inverting the
+argument, the ripple implies an effective capacitance of 2.11 fC / 17 mV ≈
+124 fF against 121 fF of `cap1` by geometry. The simple model lands on the
+measurement.
+
+So the dither is not a defect, it is the **quantisation step of a bang-bang loop
+whose loop filter was deliberately shrunk ~10× in §16**. And PRBS makes it worse
+for a reason that has nothing to do with the pump: during a run of identical bits
+there are no transitions, so the loop is **blind** — phase error accumulates
+uncorrected for up to 7 UI, and the loop then has to walk it back. That is the
+standard CID penalty, and it scales with run length, which is exactly the 2.8×
+seen between 0101 and PRBS7.
+
+**Correcting the §C25 conclusion:** the lever is still `cap1`'s `mult` (bigger C
+→ smaller step per update → less dither, at the cost of slower acquisition —
+the §16 trade), but the reason is quantisation, not pump mismatch. Nothing about
+the taped-out charge pump needs to change.
+
+### The lesson
+
+§C25 wrote down a mechanism from netlist topology alone, complete with an
+order-of-magnitude estimate, and labelled it a prediction. The topology reasoning
+survived; the magnitude was off by ~80×, because "both legs on" says nothing
+about *how well matched* the legs are — and that is the entire quantity. Reading
+a schematic tells you which effects exist, never how big they are.
