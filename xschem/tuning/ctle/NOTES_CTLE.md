@@ -774,3 +774,101 @@ at RISE=1080/1140 and keeps the early pair as an explicit drift indicator.
 
 Files: `tuning/e2e_prbs_tb.spice`, `tuning/e2e_prbs.inc` (generated),
 `tuning/e2e_prbs.log`.
+
+---
+
+# §C25. The 0101 control, and a mechanism for the PRBS drift
+
+Session 2026-08-15, batch `run_c25.sh` (four decks, 3 µs each).
+
+## C25-A: the 0101 control settles perfectly
+
+The A/B baseline §C24 lacked. Same chain, same corrected measurement windows,
+alternating 0101 — and it is **locked beyond argument**:
+
+| window | vctrl |
+|---|---|
+| 1.0-1.1 µs | 0.79139 V |
+| 1.8-1.9 µs | 0.79160 V |
+| 2.4-2.5 µs | 0.79150 V |
+| 2.8-2.9 µs | 0.79160 V |
+
+**0.2 mV of spread over 1.8 µs.** Ripple 33.7 mV. Frequency at 2.80-2.90 µs is
+600.577 MHz (rclk+) / 600.523 MHz (rclk−) against 600.6 Mb/s data — inside
+0.02 %. Channel-in 63.7 mV pp, CTLE-out 298.3 mV pp.
+
+Three things this establishes:
+
+1. The corrected `RISE=1680/1740` windows work, so §C24's PRBS numbers are not
+   a measurement artefact.
+2. **The promoted real files reproduce §C23 exactly** (63.7 mV / 299 mV /
+   0.791 V / 600.6 MHz) — an independent confirmation of the netlist-level
+   promotion check.
+3. `rsum_pp` is **2.218 V** here too, with rclk+ / rclk− means of 0.640 V and
+   1.153 V — i.e. **the recovered-clock duty-cycle asymmetry of §C24 is present
+   in a perfectly locked loop on the easiest possible pattern.** It is
+   structural (the `single_inverter`), not a symptom of failing to settle.
+
+## Mechanism for the PRBS drift — charge-pump mismatch integrating over CIDs
+
+Derived from the netlist, no simulation needed. It predicts what C25-B should
+show, so it is written down *before* that result, not after.
+
+The phase detector is a textbook Alexander. Tracing `alexander_phase_detector`:
+`x5` samples data on clk+ (call it `d[n]`), `x1` samples on clk− (the crossing
+sample `e[n]`), `x2` and `x3` retime both by one cycle (`d[n-1]`, `e[n]`), and
+the two XORs give
+
+    up   = d[n-1] XOR e[n]        (x7)
+    down = e[n]   XOR d[n]        (x6)
+
+**When there is no data transition, `d[n-1] == d[n]`, so `up == down`** — they
+go high or low *together*, for the whole run of identical bits.
+
+Now the charge pump (`tiny_pll_charge_pump`, the taped-out block):
+
+    MNSW  gate = down   (nfet, W=0.5)
+    MPSW  gate = upb    (pfet, W=1)  where upb = INV(up)   <- sky130_fd_sc_hd__inv_1
+    MNSRC gate = bias_n (nfet, W=1  L=1)
+    MPSRC gate = bias_p (pfet, W=2  L=1)
+
+With `up == down == 0`: MNSW off, and `upb`=1 turns MPSW off. Neutral.
+With `up == down == 1`: MNSW on, and `upb`=0 turns MPSW **on as well**. Both
+legs conduct, and the net current onto the filter is the **up/down mismatch**
+`Ip − In` — for the entire run.
+
+So roughly half of all CID runs leak the mismatch current continuously. On
+**0101 there are no runs at all**, which is exactly why every result up to §C23
+looked clean.
+
+Magnitude check: PRBS7's longest run is 7 UI = 11.7 ns; the integrating cap is
+`cap1` = nfet W=4 L=0.6 at **mult=6** ≈ 14.4 µm² of gate ≈ 120 fF. Producing
+§C24's 161 mV excursion needs
+
+    I = C·ΔV/Δt = 120 fF × 0.161 V / 11.7 ns ≈ 1.7 µA
+
+of net mismatch — entirely plausible for a pump whose two source devices are
+W=1 nfet against W=2 pfet and whose UP path carries an extra inverter delay
+(`upb`) that the DOWN path does not.
+
+### What this means for the fix
+
+**The charge pump must not be touched** — it is already taped out. So the
+levers are:
+
+1. **Increase `cap1`'s `mult`.** ΔV scales as 1/C for the same leaked charge.
+   But §16 shrank this filter ~10× precisely to make acquisition possible at
+   all, so this trades directly against acquisition. The right experiment is a
+   `mult` ladder to find the smallest cap that both acquires *and* survives a
+   7-UI run — §16 only ever bounded one side of that.
+2. **Accept it if the phase error stays inside the eye.** vctrl wander is only
+   fatal if it moves the sampling instant out of the 0.350 UI the CTLE delivers
+   at the worst corner (§C22). That is a jitter question, not a vctrl question,
+   and it has not been measured through the CTLE.
+3. A run-length-limiting line code (8b/10b) would remove the mechanism outright,
+   but that is a spec change, not a design fix.
+
+Do **not** conclude "the loop filter is wrong" from §C24 alone — on this
+analysis the filter is a victim of pump mismatch, and simply re-deriving it
+against PRBS without understanding that would re-open the §16 acquisition
+problem for no reason.
