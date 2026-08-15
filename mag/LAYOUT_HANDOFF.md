@@ -254,3 +254,8 @@ Layout can start now; these are the only things that might move a device.
 | `../xschem/tuning/ctle/NOTES_CTLE.md` | CTLE + end-to-end log, §C1–§C26 |
 | `../docs/info.md` | the datasheet — how it works, pinout, how to test |
 | `../CLAUDE.md` | VM rules and tool traps |
+
+---
+
+For the hands-on build plan — order of cells, per-cell device lists, Magic
+commands and the per-cell LVS tool — see **`MAGIC_GUIDE.md`** in this directory.
