@@ -79,16 +79,21 @@ Verified end to end (`xschem/tuning/e2e_ctle_cdr_tb.spice`) with data driven thr
 | CTLE eye, worst PVT corner (ss / 125 °C / 1.62 V) | 174 mV, 0.350 UI |
 | recovered clock jitter (CDR alone) | 0.68 % UI RMS |
 
-These end-to-end numbers were taken with an alternating 0101 input, which is the easiest pattern for a
-bang-bang phase detector because every bit is a transition. On a PRBS7 pattern — half the transition density,
-and runs of up to 7 identical bits — the loop is slower to settle and its control voltage dithers
-considerably more. Characterising settling on real data is ongoing work.
+Those figures are for an alternating 0101 input, the easiest pattern for a bang-bang phase detector because
+every bit is a transition. On a PRBS7 pattern — half the transition density, and runs of up to seven identical
+bits — the loop still acquires, but it takes about **3× longer** (roughly 3 µs rather than 1 µs), overshoots
+its final control voltage by ~37 mV on the way, and settles with ~2.8× the residual control-voltage ripple
+(94 mV versus 34 mV). Both effects trace to the charge pump: during a run of identical bits the phase
+detector's up and down outputs assert together, which turns both pump legs on and leaves their current
+mismatch flowing onto the loop filter.
 
 **Known limitations:**
 
 - The ring oscillator cannot reach 600 MHz at 125 °C, or at a 1.62 V supply. The design is intended for room
   temperature and a nominal 1.8 V supply; this limit is understood and accepted rather than fixed.
-- Settling time and jitter on patterns with long runs of identical bits have not been fully characterised.
+- **Jitter has not been measured through the full chain.** The residual control-voltage ripple on real data is
+  known, but how much sampling-phase error it produces — the number that actually decides whether the link
+  works — has not been characterised.
 
 ## How to test
 

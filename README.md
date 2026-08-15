@@ -27,11 +27,12 @@ differential input to about 64 mV — the eye is essentially shut at the pad
 before any circuit touches it. The CTLE recovers roughly +13.5 dB at Nyquist,
 which very nearly exactly cancels that, and the CDR then locks at 600.64 MHz.
 
-**Caveat worth reading before trusting the above:** those end-to-end numbers
-were taken with an alternating 0101 pattern, which is the easiest possible
-input for a bang-bang phase detector because every bit is a transition. On a
-PRBS7 pattern the loop is markedly slower to settle. Confirming settling on
-real data is the open gate — see `xschem/tuning/ctle/NOTES_CTLE.md` §C24.
+On real data (PRBS7, with runs of up to seven identical bits) the loop still
+acquires, but takes about 3x longer and settles with ~2.8x the residual control
+voltage ripple — traced to the charge pump's up/down current mismatch leaking
+onto the loop filter during runs of identical bits. The open question is now
+**jitter**: how much sampling-phase error that ripple produces has not been
+measured. See `xschem/tuning/ctle/NOTES_CTLE.md` §C24-§C25.
 
 ## Repository layout
 

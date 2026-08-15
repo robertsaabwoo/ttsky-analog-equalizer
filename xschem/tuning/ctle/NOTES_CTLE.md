@@ -872,3 +872,64 @@ Do **not** conclude "the loop filter is wrong" from §C24 alone — on this
 analysis the filter is a victim of pump mismatch, and simply re-deriving it
 against PRBS without understanding that would re-open the §16 acquisition
 problem for no reason.
+
+## C25-B: IT DOES SETTLE ON PRBS7 — §C24's conclusion was premature
+
+The merge gate passes. §C24 stopped at 2 µs and reported "still acquiring"; it
+had in fact caught the loop **at the peak of an overshoot**.
+
+Full 3 µs, 391 s of analysis, `Reference value : 2.99999e-06` (i.e. it really
+finished). The first two windows reproduce §C24 to **seven significant figures**
+(0.7910886 V, 0.8281071 V; early frequency 599.5863 MHz — identical), so this is
+the same trajectory continued, not a different run:
+
+| window | vctrl | Δ from previous |
+|---|---|---|
+| 1.0-1.1 µs | 0.79109 V | — |
+| 1.8-1.9 µs | 0.82811 V | **+37.0 mV**  ← where §C24 stopped |
+| 2.4-2.5 µs | 0.80188 V | −26.2 mV |
+| 2.8-2.9 µs | 0.79921 V | −2.7 mV |
+
+That is a **damped ring, not a runaway**: +37, −26, −2.7 mV, converging on
+~0.799 V against the 0101 case's 0.7916 V. Ripple decays the same way,
+161 mV pp at 1.8-1.9 µs → **93.8 mV pp** at 2.8-2.9 µs. Frequency at the end is
+600.24 MHz (rclk+) / 600.64 MHz (rclk−) against 600.6 Mb/s data.
+
+**So the CDR does acquire on real data.** What PRBS7 costs, relative to 0101:
+
+| | 0101 (C25-A) | PRBS7 (C25-B) |
+|---|---|---|
+| settled by | ~1 µs | ~3 µs |
+| final vctrl | 0.7916 V | 0.7992 V |
+| overshoot | none measurable | +37 mV |
+| residual ripple | 33.7 mV pp | 93.8 mV pp |
+
+Roughly **3× the acquisition time and 2.8× the residual dither**. Both are
+consistent with the §C25 charge-pump mechanism — half the CID runs leak the
+up/down mismatch onto the filter, which both slows convergence and sets a
+dither floor — and the ~1.7 µA estimate there still stands as the thing to
+confirm with `cp_mismatch.spice`.
+
+### What is still open after this
+
+The gate is passed, but two numbers are *not* yet established:
+
+1. **Jitter through the CTLE.** 93.8 mV of residual vctrl dither is only fatal
+   if it walks the sampling instant out of the 0.350 UI the CTLE delivers at the
+   worst corner (§C22). vctrl dither is not the same as phase error, and the
+   phase error has never been measured on this chain. **This is now the real
+   remaining risk, not settling.**
+2. The two phases disagree on frequency by 0.4 MHz (600.24 vs 600.64). Both
+   come from the same oscillator, so that is not a real frequency difference —
+   it is the §C24 duty-cycle asymmetry corrupting where each waveform crosses
+   the 0.9 V measuring threshold. Harmless for the measurement, but another
+   reminder not to treat rclk− as a clean complement.
+
+### Operational note: foreground work slows the guarded background sim
+
+C25-A took 1189 s and C25-B took 391 s for the *same* 3 µs span. The difference
+is not the circuit — it is that during C25-A this session was concurrently
+running full-hierarchy xschem netlisting, magic and netgen, and during C25-B it
+was only writing files and running git. `nice -n 15` deprioritises the sim, so
+interactive tool use steals from it by a factor of ~3. If a long run's wall time
+matters, stay off the box.

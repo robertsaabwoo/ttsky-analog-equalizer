@@ -10,15 +10,19 @@
 >    2026-08-15". The chip top level is the new `xschem/ctle_cdr_rx.sch`, and
 >    `src/project.v` + `mag/` are wired up for the TinyTapeout custom-GDS flow.
 >
-> 2. **"The CDR locks" is weaker than §1 below implies.** Everything in §1 and
->    in NOTES_CTLE §C23 was measured with either ideal data or an alternating
->    0101 pattern — the easiest possible input for a bang-bang phase detector,
->    because every bit is a transition. §C24 ran the first **PRBS7** end-to-end
->    test and the loop had **not settled after 2 µs**: vctrl drifts 0.791 →
->    0.828 V and dithers 161 mV pp (vs 33 mV on 0101). The §16 loop-filter
->    shrink was sized against 0101, and it is in direct tension with tolerating
->    runs of identical bits. **Confirming settling on real data is the open
->    merge gate.** See NOTES_CTLE §C24.
+> 2. **The CDR does lock on real data — merge gate PASSED.** Everything in §1
+>    and in NOTES_CTLE §C23 was measured on ideal or 0101 data, the easiest
+>    possible input for a bang-bang PD. §C24 ran the first **PRBS7** test, saw
+>    vctrl at 0.828 V and still moving at 2 µs, and concluded "not settled" —
+>    **that conclusion was premature.** §C25-B ran the same trajectory to 3 µs
+>    and it is a damped ring, not a runaway: 0.791 → 0.828 → 0.802 → 0.799 V
+>    (+37, −26, −2.7 mV). It settles, at ~3× the 0101 acquisition time and with
+>    2.8× the residual dither (93.8 vs 33.7 mV pp).
+>
+>    **The remaining risk is jitter, not settling.** 93.8 mV of vctrl dither
+>    only matters if it walks the sampling instant out of the 0.350 UI the CTLE
+>    delivers at the worst corner — and phase error has never been measured on
+>    this chain. See NOTES_CTLE §C24-§C25.
 >
 > Also from §C24: `rclk-` is NOT an instantaneous complement of `rclk+` — it is
 > `rclk+` through an inverter, and the two phases have ~33 % / ~61 % duty
