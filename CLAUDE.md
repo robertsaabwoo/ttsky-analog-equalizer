@@ -6,6 +6,12 @@ chain for TinyTapeout.
 **Read `xschem/tuning/HANDOFF.md` first** — it is the full state of the project,
 what is finished, what is open, and the traps.
 
+**If this session is about LAYOUT, read `mag/LAYOUT_HANDOFF.md` instead** — it is
+self-contained: what the macro is, the pad mapping, the toolchain commands, the
+device inventory per block, floorplan guidance, what must not be changed, and
+the traps already hit. As of 2026-08-15 the schematic design is frozen and
+netlist-verified, the LVS flow is proven to run, and nothing has been drawn yet.
+
 ---
 
 ## 1. THE VM IS WEAK — this constraint overrides convenience
@@ -74,6 +80,10 @@ netlist with "Symbol not found" for everything.
 | `xschem/tuning/HANDOFF.md` | current state + open items. Start here. |
 | `xschem/tuning/pvt/` | PVT harness (`gen_pvt.py`, `run_pvt.sh`, `collect_pvt.py`) |
 | `xschem/tuning/safe_ngspice.sh` | the resource guard. Use it. |
+| `xschem/ctle_cdr_rx.sch` | **the analog macro that gets laid out** (CTLE → CDR → output buffers) |
+| `xschem/ctle_cdr_rx_lvs.sch` | one-instance wrapper; netlist THIS to get a `.subckt` for netgen |
+| `mag/LAYOUT_HANDOFF.md` | **start here for layout work** |
+| `src/project.v` | blackbox Verilog: the pad ↔ macro wiring that `make lvs` checks |
 
 `pvt/decks/`, `pvt/results/`, `pvt/.netlists/` are gitignored and regenerated.
 
