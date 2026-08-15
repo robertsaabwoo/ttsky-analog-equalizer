@@ -59,18 +59,19 @@ x_cdr  Vdd Vss coutp coutm vbias rclkp rclkm CDR_tune
   meas tran vctrl_w4 AVG v(x_cdr.net1) FROM=2800n TO=2900n
   meas tran vctrl_ripp PP v(x_cdr.net1) FROM=2800n TO=2900n
 
-* --- frequency averaged over 600 cycles (the C25-C fix), ~1.0 us of lever ---
+* --- frequency averaged over many cycles (the C25-C fix) ---
+* NOTE: RISE=1800 does NOT exist. The clock only starts after the precharge
+* releases at ~126 ns, so a 3 us run yields ~1799 rising edges, not the 1802
+* UI of data. Derive the index from (t_end - t_release)/UI, not t_end/UI --
+* the first version of this deck used 1800 and the measure simply failed.
   meas tran e1200 WHEN v(rclkp)=0.9 RISE=1200
+  meas tran e1680 WHEN v(rclkp)=0.9 RISE=1680
   meas tran e1740 WHEN v(rclkp)=0.9 RISE=1740
-* NOTE: RISE=1800 does NOT exist -- the clock only starts after the precharge
-* releases at ~126 ns, so a 3 us run has ~1799 edges, not 1802. Derive the
-* index from (t_end - t_release)/UI, not t_end/UI.
-  let f600_MHz = 600/(e1800-e1200)/1e6
-  print f600_MHz
+  let f540_MHz = 540/(e1740-e1200)/1e6
+  print f540_MHz
 * the same span measured 60 cycles at a time, to show how much the short
 * window was actually lying by
-  meas tran e1740 WHEN v(rclkp)=0.9 RISE=1740
-  let f60_MHz = 60/(e1800-e1740)/1e6
+  let f60_MHz = 60/(e1740-e1680)/1e6
   print f60_MHz
 
 * --- dump the recovered clock for edge extraction (explicit vector list) ---
