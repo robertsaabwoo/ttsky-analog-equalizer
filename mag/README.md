@@ -71,3 +71,48 @@ Two things follow, for whoever starts the layout:
 * `make start` will silently keep a pre-existing `$(PROJECT_NAME).mag` instead of
   rebuilding it from the template. Delete the `.mag` first if you change
   `TEMPLATE_FILE`, or you will get the old frame back with no warning.
+
+# Floorplan budget (measured 2026-08-15, from the ctle_cdr_rx netlist)
+
+Device inventory of the whole macro, flattened:
+
+| model | count | drawn um2 |
+|---|---:|---:|
+| `res_high_po` (L=17.5-23, the load/degeneration resistors) | 22 | 370.0 |
+| `cap_mim_m3_1` (the CTLE degeneration cap, 18x18) | 1 | 324.0 |
+| `nfet_01v8` | 169 | 299.6 |
+| `res_high_po_0p69` (the d_latch loads) | 16 | 77.3 |
+| `res_xhigh_po_0p35` | 5 | 49.1 |
+| `pfet_01v8` | 47 | 42.2 |
+| `sky130_fd_sc_hd__inv_1` | 1 | ~0 |
+| **total** | **261** | **1162** |
+
+Per block: CTLE 396 um2 (mostly the one MiM cap), CDR 755 um2, each output
+inverter chain 5.4 um2.
+
+**Area is not the constraint, and never was.** Drawn area is 1162 um2. Even at a
+5x hand-layout multiplier (contacts, diffusion extension, well spacing, guard
+rings, routing channels) that is ~5800 um2, and a realistic hand layout of 216
+transistors plus 43 long poly resistors lands somewhere around 10-20k um2:
+
+    1x2 tile   161.00 x 225.76 um =  36 347 um2
+    2x2 tile   334.88 x 225.76 um =  75 603 um2
+
+So **1x2 would have fit** with room to spare. 2x2 was chosen for layout comfort,
+not necessity — matched placement for the 5-stage differential ring, guard rings
+around the CTLE, and generous routing channels are all easier with the extra
+width. If tile budget ever matters more than that comfort, dropping back to 1x2
+is a two-line change (`info.yaml: tiles` and `TEMPLATE_FILE` here) and the
+numbers above say it would still fit.
+
+Things that will actually shape the floorplan, rather than the area total:
+
+* **The 43 poly resistors are long thin strips**, not blobs — `res_high_po` at
+  W=1 um, L=20-23 um. They dominate the *shape* of the CTLE and the d_latches
+  even though they are a small fraction of the area. Plan serpentines or a
+  resistor row early.
+* **The MiM cap sits above metal3**, so it can overlap logic below it and costs
+  almost nothing in floor area if placed deliberately.
+* **The ring oscillator wants symmetry.** Its five `ring_inverter` stages and the
+  `diff_amp_inv` should be placed as a matched row; asymmetry there shows up
+  directly as recovered-clock duty-cycle error.
