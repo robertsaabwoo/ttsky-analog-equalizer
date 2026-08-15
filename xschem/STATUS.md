@@ -2,10 +2,15 @@
 
 Last updated 2026-08-15.
 
-> **2026-08-15: the real design files now hold the validated design.** The
-> section below titled "The real design files still carry pre-validation tuning"
-> described the state *before* that promotion and is kept only as history. See
-> "Promotion, 2026-08-15" immediately below for what is now true.
+> **2026-08-15: the real design files now hold the validated design, and it is
+> merged into `main`.** The section below titled "The real design files still
+> carry pre-validation tuning" described the state *before* that promotion and is
+> kept only as history. See "Promotion, 2026-08-15" immediately below.
+>
+> **`main` is now the design.** `ctle-tuning` was fast-forwarded into it (26
+> commits, no divergence, no conflicts). The branch table further down described
+> the pre-merge split and is superseded: `ctle-tuning` and `main` are the same
+> commit, and new work should start from `main`.
 
 ## Promotion, 2026-08-15
 
