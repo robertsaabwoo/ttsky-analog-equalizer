@@ -1,0 +1,77 @@
+* =====================================================================
+*  C26: JITTER through the CTLE+CDR chain -- the risk C25 left standing
+*
+*  C25-B established that the loop settles on PRBS7, but with 93.8 mV pp of
+*  residual vctrl dither (2.8x the 0101 case). That only matters if it walks
+*  the sampling instant out of the 0.350 UI the CTLE delivers at the worst
+*  PVT corner (C22). vctrl dither is NOT phase error; this deck measures the
+*  phase error directly.
+*
+*  Method: identical chain to e2e_c25b_prbs, but the recovered clock is
+*  written out so the edge times can be compared against the ideal bit grid
+*  (n * 1.665 ns) in jitter_parse.py.
+*
+*  MEMORY SAFETY (../../CLAUDE.md): `write` is given an EXPLICIT vector list.
+*  The rule that OOM-crashed the VM is about a BARE `write foo.raw`, which
+*  stores every node at every timepoint. One vector over 3 us at 20 ps is
+*  150k points ~ 10 MB of ASCII. That is fine; a bare write here would be
+*  gigabytes.
+*
+*  Also fixes the C25-C measurement flaw: frequency is averaged over 600
+*  cycles, not 60. With ~90 mV of dither on a ~357 MHz/V VCO the
+*  instantaneous frequency swings +/-16 MHz, so a 60-cycle window cannot
+*  resolve a 2 MHz offset. 600 cycles averages 10x better.
+* =====================================================================
+.lib /home/ttuser/pdk/sky130A/libs.tech/ngspice/sky130.lib.spice tt
+.include /home/ttuser/pdk/sky130A/libs.ref/sky130_fd_sc_hd/spice/sky130_fd_sc_hd.spice
+.include e2e_blocks.inc
+.include e2e_prbs3u.inc
+.options method=gear reltol=0.001 abstol=1e-12
+
+.param vcm=0.9
+.param amp=0.2
+.param rpad=500 cpad=5p
+
+VDD Vdd 0 1.8
+VSS Vss 0 0
+Vb  vbias 0 0.9
+
+Edinp dinp 0 vol='vcm + 0.5*amp*(v(dsrc)-0.5)'
+Edinm dinm 0 vol='vcm - 0.5*amp*(v(dsrc)-0.5)'
+
+Rpadp dinp cinp 'rpad'
+Cpadp cinp 0    'cpad'
+Rpadm dinm cinm 'rpad'
+Cpadm cinm 0    'cpad'
+
+x_ctle coutp coutm cinp cinm Vdd Vss vbias CTLE_tune
+x_cdr  Vdd Vss coutp coutm vbias rclkp rclkm CDR_tune
+
+.ic v(x_cdr.x20.nrc)=0
+.op
+
+.control
+  save v(rclkp) v(x_cdr.net1)
+  tran 20p 3000n
+
+* --- settling, same windows as C25 so the runs are comparable ---
+  meas tran vctrl_w3 AVG v(x_cdr.net1) FROM=2400n TO=2500n
+  meas tran vctrl_w4 AVG v(x_cdr.net1) FROM=2800n TO=2900n
+  meas tran vctrl_ripp PP v(x_cdr.net1) FROM=2800n TO=2900n
+
+* --- frequency averaged over 600 cycles (the C25-C fix), ~1.0 us of lever ---
+  meas tran e1200 WHEN v(rclkp)=0.9 RISE=1200
+  meas tran e1800 WHEN v(rclkp)=0.9 RISE=1800
+  let f600_MHz = 600/(e1800-e1200)/1e6
+  print f600_MHz
+* the same span measured 60 cycles at a time, to show how much the short
+* window was actually lying by
+  meas tran e1740 WHEN v(rclkp)=0.9 RISE=1740
+  let f60_MHz = 60/(e1800-e1740)/1e6
+  print f60_MHz
+
+* --- dump the recovered clock for edge extraction (explicit vector list) ---
+  set filetype=ascii
+  write c26_rclk.raw v(rclkp)
+.endc
+.end
