@@ -1,8 +1,10 @@
-*swp
+*def
 *ext
+*.fb.txt
+lvs.report
+*.lvs.spice
+*magicrc
 *nodes
 *sim
 *spice
-*magicrc
-*def
-lvs.report
+*swp

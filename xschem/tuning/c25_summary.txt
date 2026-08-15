@@ -1,0 +1,92 @@
+==========================================================
+C25 batch started 2026-08-15T01:24:42+00:00
+  host free RAM: 6432MB
+  order: a b c d
+==========================================================
+
+---------- a : 0101 control, 3 us (A/B baseline for C24) ----------
+deck=e2e_c25a_0101.spice  rc=0  wall=1212s  finished=2026-08-15T01:44:55+00:00
+vctrl_w1            =  7.913905e-01 from=  1.000000e-06 to=  1.100017e-06
+vctrl_w2            =  7.916024e-01 from=  1.800000e-06 to=  1.900015e-06
+vctrl_w3            =  7.914993e-01 from=  2.400000e-06 to=  2.500000e-06
+vctrl_w4            =  7.915961e-01 from=  2.800000e-06 to=  2.900008e-06
+vctrl_ripp          =  3.373872e-02 from=  2.800000e-06 to=  2.900000e-06
+t_release           =  1.265517e-07
+rclkp_swing         =  1.870215e+00 from=  2.800000e-06 to=  2.900000e-06
+rclkm_swing         =  1.933496e+00 from=  2.800000e-06 to=  2.900000e-06
+rclkp_avg           =  6.398003e-01 from=  2.800000e-06 to=  2.900008e-06
+rclkm_avg           =  1.153115e+00 from=  2.800000e-06 to=  2.900008e-06
+rsum_avg            =  1.792915e+00 from=  2.800000e-06 to=  2.900008e-06
+rsum_pp             =  2.218135e+00 from=  2.800000e-06 to=  2.900000e-06
+cin_swing           =  6.372982e-02 from=  2.800000e-06 to=  2.900000e-06
+ctle_swing          =  2.982769e-01 from=  2.800000e-06 to=  2.900000e-06
+fp_late_mhz = 6.005766e+02
+fm_late_mhz = 6.005225e+02
+fp_early_mhz = 6.006367e+02
+VERDICT: |vctrl_w4 - vctrl_w3| = 0.1 mV  -> SETTLED (<5 mV between 2.45 and 2.85 us)
+
+---------- b : PRBS7, 3 us  <-- THE MERGE GATE ----------
+deck=e2e_c25b_prbs.spice  rc=0  wall=404s  finished=2026-08-15T01:51:39+00:00
+vctrl_w1            =  7.910886e-01 from=  1.000000e-06 to=  1.100011e-06
+vctrl_w2            =  8.281071e-01 from=  1.800000e-06 to=  1.900019e-06
+vctrl_w3            =  8.018765e-01 from=  2.400000e-06 to=  2.500015e-06
+vctrl_w4            =  7.992064e-01 from=  2.800000e-06 to=  2.900008e-06
+vctrl_ripp          =  9.382821e-02 from=  2.800000e-06 to=  2.900000e-06
+t_release           =  1.265607e-07
+rclkp_swing         =  1.868481e+00 from=  2.800000e-06 to=  2.900000e-06
+rclkm_swing         =  1.936626e+00 from=  2.800000e-06 to=  2.900000e-06
+rclkp_avg           =  6.329103e-01 from=  2.800000e-06 to=  2.900008e-06
+rclkm_avg           =  1.160207e+00 from=  2.800000e-06 to=  2.900008e-06
+rsum_avg            =  1.793117e+00 from=  2.800000e-06 to=  2.900008e-06
+rsum_pp             =  2.242243e+00 from=  2.800000e-06 to=  2.900000e-06
+cin_swing           =  1.832780e-01 from=  2.800000e-06 to=  2.900000e-06
+ctle_swing          =  6.678083e-01 from=  2.800000e-06 to=  2.900000e-06
+fp_late_mhz = 6.002401e+02
+fm_late_mhz = 6.006427e+02
+fp_early_mhz = 5.995863e+02
+VERDICT: |vctrl_w4 - vctrl_w3| = 2.7 mV  -> SETTLED (<5 mV between 2.45 and 2.85 us)
+
+---------- c : PRBS7, opposite data polarity (C23 gap 2) ----------
+deck=e2e_c25c_pol.spice  rc=0  wall=381s  finished=2026-08-15T01:58:00+00:00
+vctrl_w1            =  7.883893e-01 from=  1.000000e-06 to=  1.100010e-06
+vctrl_w2            =  7.919030e-01 from=  1.800000e-06 to=  1.900008e-06
+vctrl_w3            =  7.940988e-01 from=  2.400000e-06 to=  2.500014e-06
+vctrl_w4            =  8.010027e-01 from=  2.800000e-06 to=  2.900008e-06
+vctrl_ripp          =  7.893190e-02 from=  2.800000e-06 to=  2.900000e-06
+t_release           =  1.264922e-07
+rclkp_swing         =  1.869628e+00 from=  2.800000e-06 to=  2.900000e-06
+rclkm_swing         =  1.939048e+00 from=  2.800000e-06 to=  2.900000e-06
+rclkp_avg           =  6.277924e-01 from=  2.800000e-06 to=  2.900008e-06
+rclkm_avg           =  1.165300e+00 from=  2.800000e-06 to=  2.900008e-06
+rsum_avg            =  1.793093e+00 from=  2.800000e-06 to=  2.900008e-06
+rsum_pp             =  2.295144e+00 from=  2.800000e-06 to=  2.900000e-06
+cin_swing           =  1.832756e-01 from=  2.800000e-06 to=  2.900000e-06
+ctle_swing          =  6.525150e-01 from=  2.800000e-06 to=  2.900000e-06
+fp_late_mhz = 6.025790e+02
+fm_late_mhz = 6.023129e+02
+fp_early_mhz = 5.968427e+02
+VERDICT: |vctrl_w4 - vctrl_w3| = 6.9 mV  -> STILL MOVING
+
+---------- d : PRBS7, 100 mVpp input sensitivity (C23 gap 5) ----------
+deck=e2e_c25d_sens.spice  rc=0  wall=385s  finished=2026-08-15T02:04:25+00:00
+vctrl_w1            =  7.924651e-01 from=  1.000000e-06 to=  1.100014e-06
+vctrl_w2            =  7.950867e-01 from=  1.800000e-06 to=  1.900005e-06
+vctrl_w3            =  8.334903e-01 from=  2.400000e-06 to=  2.500019e-06
+vctrl_w4            =  7.977852e-01 from=  2.800000e-06 to=  2.900015e-06
+vctrl_ripp          =  7.575695e-02 from=  2.800000e-06 to=  2.900000e-06
+t_release           =  1.265398e-07
+rclkp_swing         =  1.869561e+00 from=  2.800000e-06 to=  2.900000e-06
+rclkm_swing         =  1.935556e+00 from=  2.800000e-06 to=  2.900000e-06
+rclkp_avg           =  6.311671e-01 from=  2.800000e-06 to=  2.900015e-06
+rclkm_avg           =  1.162122e+00 from=  2.800000e-06 to=  2.900015e-06
+rsum_avg            =  1.793289e+00 from=  2.800000e-06 to=  2.900015e-06
+rsum_pp             =  2.279515e+00 from=  2.800000e-06 to=  2.900000e-06
+cin_swing           =  9.163830e-02 from=  2.800000e-06 to=  2.900000e-06
+ctle_swing          =  3.479572e-01 from=  2.800000e-06 to=  2.900000e-06
+fp_late_mhz = 6.020228e+02
+fm_late_mhz = 6.023310e+02
+fp_early_mhz = 6.002641e+02
+VERDICT: |vctrl_w4 - vctrl_w3| = 35.7 mV  -> STILL MOVING
+
+C25 batch finished 2026-08-15T02:04:25+00:00
+==========================================================
