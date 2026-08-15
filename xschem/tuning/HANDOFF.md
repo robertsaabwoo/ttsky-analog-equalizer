@@ -1,5 +1,29 @@
 # HANDOFF — state of the project as of 2026-07-23
 
+> ## UPDATE 2026-08-15 — read this before the rest of the file
+>
+> Two things below are now out of date:
+>
+> 1. **The sandbox has been promoted.** `xschem/*.sch` now hold the validated
+>    design, verified netlist-for-netlist against `tuning/e2e_blocks.inc` (all
+>    17 leaf subcircuits match exactly). See `../STATUS.md` → "Promotion,
+>    2026-08-15". The chip top level is the new `xschem/ctle_cdr_rx.sch`, and
+>    `src/project.v` + `mag/` are wired up for the TinyTapeout custom-GDS flow.
+>
+> 2. **"The CDR locks" is weaker than §1 below implies.** Everything in §1 and
+>    in NOTES_CTLE §C23 was measured with either ideal data or an alternating
+>    0101 pattern — the easiest possible input for a bang-bang phase detector,
+>    because every bit is a transition. §C24 ran the first **PRBS7** end-to-end
+>    test and the loop had **not settled after 2 µs**: vctrl drifts 0.791 →
+>    0.828 V and dithers 161 mV pp (vs 33 mV on 0101). The §16 loop-filter
+>    shrink was sized against 0101, and it is in direct tension with tolerating
+>    runs of identical bits. **Confirming settling on real data is the open
+>    merge gate.** See NOTES_CTLE §C24.
+>
+> Also from §C24: `rclk-` is NOT an instantaneous complement of `rclk+` — it is
+> `rclk+` through an inverter, and the two phases have ~33 % / ~61 % duty
+> cycles. §13h's average-sum check could not have caught this.
+
 Written at the end of session 7, for whoever picks this up next. The user is
 **pivoting to CTLE work in a new session**; the CDR thread below is finished and
 parked, not abandoned mid-flight.
