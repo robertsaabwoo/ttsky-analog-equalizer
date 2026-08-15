@@ -50,3 +50,24 @@ Once your layout is ready to submit generate the GDS and LEF:
     make update_gds
 
 Then head to https://app.tinytapeout.com to submit your design onto the next shuttle.
+
+# Note on the 2x2 tile (2026-08-15)
+
+`info.yaml` declares `tiles: "2x2"` and `TEMPLATE_FILE` is `tt_analog_2x2.def`.
+
+Be aware that **the 1x2 and 2x2 templates differ only in `DIEAREA` and the
+standard-cell `ROW` definitions** — the pin set and their positions are
+byte-identical. So `make start` draws the same frame either way, and the
+generated `.mag` has the same ~151.7 x 225.8 um bounding box. That is not a bug:
+the 2x2 simply gives you a 334.88 um wide die instead of 161 um, and the extra
+width to the right just has no template geometry in it.
+
+Two things follow, for whoever starts the layout:
+
+* `tcl/tt-analog-draw.tcl` only draws power stripes at x = 1 um and x = 4 um
+  (see its `POWER_STRIPES` list). That was sized for a 161 um wide die. A 334.88
+  um die wants more straps across the width — add them to that list before
+  drawing, rather than routing power ad hoc later.
+* `make start` will silently keep a pre-existing `$(PROJECT_NAME).mag` instead of
+  rebuilding it from the template. Delete the `.mag` first if you change
+  `TEMPLATE_FILE`, or you will get the old frame back with no warning.

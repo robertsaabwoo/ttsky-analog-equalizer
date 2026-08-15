@@ -18,3 +18,4 @@ xschem/vip.txt
 xschem/tuning/*.log
 xschem/tuning/ctle/*.log
 xschem/simulation/
+xschem/tuning/c25_batch.log

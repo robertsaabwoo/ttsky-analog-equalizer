@@ -1,6 +1,8 @@
 magic
 tech sky130A
-timestamp 1778115242
+timestamp 1786756741
+<< checkpaint >>
+rect -530 -130 1230 22706
 << metal4 >>
 rect 3067 22476 3097 22576
 rect 3343 22476 3373 22576
@@ -163,5 +165,5 @@ port 51 nsew power bidirectional
 flabel metal4 400 500 600 22076 1 FreeSans 800 0 0 0 VGND
 port 52 nsew ground bidirectional
 << properties >>
-string FIXED_BBOX 0 0 16100 22576
+string FIXED_BBOX 0 0 33488 22576
 << end >>

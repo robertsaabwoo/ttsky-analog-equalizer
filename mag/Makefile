@@ -1,6 +1,11 @@
 PROJECT_NAME ?= tt_um_robertsaabwoo_ctle_clock_recovery
 MAGIC_RC := $(PDK_ROOT)/sky130A/libs.tech/magic/sky130A.magicrc
-TEMPLATE_FILE := tt_analog_1x2.def
+
+# 2x2 chosen 2026-08-15: the promoted design is ~166 transistors plus 43 long
+# poly resistors (res_high_po L=20-23 um each) and a MiM cap, which is too tight
+# for the 1x2 this project started as.
+TEMPLATE_FILE := tt_analog_2x2.def
+#TEMPLATE_FILE := tt_analog_1x2.def
 #TEMPLATE_FILE := tt_analog_1x2_3v3.def
 
 .PHONY: lvs magic start
@@ -13,6 +18,9 @@ tt_analog_1x2.def:
 
 tt_analog_1x2_3v3.def:
 	wget https://raw.githubusercontent.com/TinyTapeout/tt-support-tools/tt08/def/analog/tt_analog_1x2_3v3.def
+
+tt_analog_2x2.def:
+	wget https://raw.githubusercontent.com/TinyTapeout/tt-support-tools/tt08/def/analog/tt_analog_2x2.def
 
 start: $(TEMPLATE_FILE)
 	magic -rcfile $(MAGIC_RC) -noconsole -dnull tcl/tt-analog-draw.tcl $(TEMPLATE_FILE) $(PROJECT_NAME)
