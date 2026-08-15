@@ -983,3 +983,51 @@ nothing extra and averages 10× better.
 
 Do not edit `run_c25.sh` while the batch is executing — bash reads scripts
 incrementally and will misbehave. Change it after.
+
+## C25-D: input sensitivity — 200 mVpp is comfortable, 100 mVpp is marginal
+
+Halving the source amplitude to 100 mVpp (C23 gap 5).
+
+The **signal path scales linearly and cleanly**, which is itself worth having:
+
+| | 200 mVpp (C25-B) | 100 mVpp (C25-D) | ratio |
+|---|---|---|---|
+| at CTLE input, after the pad | 183.3 mV | 91.6 mV | 2.00× |
+| at CTLE output | 667.8 mV | 347.9 mV | 1.92× |
+
+Exactly 2× at the input and near-2× at the output confirms the CTLE is
+operating in its linear region at both levels, as §C8 claimed — no compression,
+so equalisation is doing its job at both amplitudes. The recovered clock is
+still rail-to-rail (1.870 V) and the precharge still releases at 126.5 ns.
+
+**But the loop behaves noticeably worse:**
+
+| window | vctrl |
+|---|---|
+| 1.0-1.1 µs | 0.79247 |
+| 1.8-1.9 µs | 0.79509 |
+| 2.4-2.5 µs | **0.83349** |
+| 2.8-2.9 µs | 0.79779 |
+
+That is not a drift and not a decaying ring — it is a **large low-frequency
+wander**, +38 mV then −36 mV between adjacent windows, with `w4` landing back
+near `w1`. The loop is tracking, not diverging, but it is swinging ±40 mV about
+its lock point on top of 75.8 mV pp of ripple. Nothing like it appears at
+200 mVpp.
+
+Likely cause: at 348 mV differential the CTLE is handing the Alexander PD's
+latches roughly half the swing they get at 200 mVpp. §12a measured only ~5 %
+CML/inverter margin in `d_latch`, and §C23 noted the PD works better than the
+static-eye estimate because it samples the *boosted transition* swing. Halve
+that and occasional sampling errors become likely, each producing a burst of
+wrong corrections — which is what ±40 mV of wander looks like.
+
+**Sensitivity conclusion: 200 mVpp differential at the pad is comfortable;
+100 mVpp is marginal.** The link works at 100 mVpp but with materially degraded
+loop behaviour, so it should not be quoted as the sensitivity limit. Finding the
+actual limit needs a ladder (150, 125 mVpp) — not run.
+
+Caveat on all four `STILL MOVING` verdicts in this batch: they come from four
+100 ns averages 400-900 ns apart, which is a very coarse probe of a loop that
+wanders slowly. They are enough to rank B (quiet) against D (wandering), and not
+enough for much else. §C26 measures phase error properly.
