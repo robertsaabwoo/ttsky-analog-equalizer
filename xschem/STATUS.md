@@ -26,9 +26,14 @@ the charge pump is already taped out.
 Two consequences to be aware of:
 
 - **`CDR.sym` gained a `vbias` pin** (6 pins → 7). It is the only promoted block
-  whose interface changed. `full_tb.sch` and `demux_tb.sch` instantiate the old
-  6-pin `CDR.sym` and are now stale; they are development testbenches, not part
-  of the chip path, and were left alone.
+  whose interface changed. **This turned out to be harmless** (checked
+  2026-08-15, after first assuming otherwise): the six pre-existing pins are at
+  *identical coordinates* in the old and new symbol — only the listing order in
+  the file differs — and the new `vbias` pin landed on a spot that was
+  previously unoccupied. Better still, `full_tb.sch` and `demux_tb.sch` already
+  had a `vbias` wire routed to exactly that coordinate, so the promotion
+  *completed* a connection rather than breaking one. Verified by netlisting:
+  `x1 Vdd Vss vin+ net1 vbias net4 net3 CDR`. Neither testbench needed an edit.
 - The stale hand-edits in `stash@{0}` are now **definitively superseded**. Do not
   pop them. They can be dropped once someone is confident nothing is wanted.
 
