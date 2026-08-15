@@ -64,9 +64,12 @@ module ctle_cdr_rx (
     input  wire vinm,      // ua[1]  differential input -
     input  wire vbias,     // ua[2]  external bias reference (~0.9 V)
     output wire clkout_p,  // recovered clock, true
-    output wire clkout_n,  // recovered clock, complement
-    inout  wire VDPWR,
-    inout  wire VGND
+    output wire clkout_n,  // recovered clock, inverted (see docs: not a true complement)
+    // Declared `input` to match how the TT harness hands VDPWR/VGND to the user
+    // module. They are of course the macro's supply rails; netgen matches the
+    // power pins by name, so the Verilog direction here does not affect LVS.
+    input  wire VDPWR,
+    input  wire VGND
 );
 endmodule
 
