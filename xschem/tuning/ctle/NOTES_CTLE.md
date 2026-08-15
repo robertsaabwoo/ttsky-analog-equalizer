@@ -933,3 +933,53 @@ running full-hierarchy xschem netlisting, magic and netgen, and during C25-B it
 was only writing files and running git. `nice -n 15` deprioritises the sim, so
 interactive tool use steals from it by a factor of ~3. If a long run's wall time
 matters, stay off the box.
+
+## C25-C: data polarity — the gap-2 question is answered, the verdict flag is not
+
+`vctrl` trajectories, deck B (normal) against deck C (data inverted):
+
+| window | B (pol +) | C (pol −) |
+|---|---|---|
+| 1.0-1.1 µs | 0.79109 | 0.78839 |
+| 1.8-1.9 µs | 0.82811 | 0.79190 |
+| 2.4-2.5 µs | 0.80188 | 0.79410 |
+| 2.8-2.9 µs | 0.79921 | 0.80100 |
+| deltas (mV) | +37.0, −26.2, −2.7 | +3.5, +2.2, +6.9 |
+
+**What C23 gap 2 actually asked is answered, and the answer is good:**
+
+- precharge release **126.49 ns** (C) vs **126.56 ns** (B) — the startup cell is
+  polarity-independent through the CTLE, exactly as §17e/f claimed for the CDR
+  alone;
+- `cin_swing` is **identical to four figures** (183.3 mV both) — the pad LPF and
+  CTLE path are polarity-symmetric, as they must be;
+- both runs converge into the same 0.799-0.801 V region.
+
+Inverting the data cannot change *when* transitions happen, so the Alexander PD
+should be indifferent to polarity — and in steady state it is. What differs is
+the **acquisition path**: the first PD decisions after power-up have the
+opposite sense, so B overshoots to 0.828 V and rings back down while C creeps up
+from 0.788 V. Same destination, different route.
+
+### The `STILL MOVING` flag on C is not trustworthy, and neither is C's frequency
+
+Two measurement problems, both mine:
+
+1. **The 5 mV verdict threshold is arbitrary** and is separating B (2.7 mV) from
+   C (6.9 mV) on a difference that means little. C's deltas are +3.5, +2.2, +6.9
+   — not a decaying sequence, so it is genuinely still moving, but "still moving
+   by 7 mV while sitting 2 mV from where B settled" is not a failure.
+2. **C's 602.58 MHz is inside the noise floor of its own measurement.** The VCO
+   slope near lock is ~357 MHz/V (§20b: 514-621 MHz over ~0.65-0.95 V), so
+   78.9 mV pp of `vctrl` ripple is **±14 MHz of instantaneous frequency**. A
+   60-cycle (~100 ns) window cannot resolve a 2 MHz offset out of that. It is
+   not evidence of a frequency error. (Deck A could resolve it — 33.7 mV of
+   ripple, and it read 600.577 MHz against 600.6.)
+
+**Fix for any future lock test: average over ~600 cycles, not 60.** Locked-ness
+is a statement about the *average* rate matching the baud rate, and 100 ns is
+simply too short a lever under this much dither. `RISE=1200` → `RISE=1800` costs
+nothing extra and averages 10× better.
+
+Do not edit `run_c25.sh` while the batch is executing — bash reads scripts
+incrementally and will misbehave. Change it after.
