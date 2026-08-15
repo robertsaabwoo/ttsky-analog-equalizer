@@ -1,0 +1,73 @@
+* =====================================================================
+*  C25-E: measure the charge pump's up/down current mismatch directly
+*
+*  Tests the §C25 hypothesis for the PRBS drift.  The Alexander PD gives
+*      up   = d[n-1] XOR e[n]
+*      down = e[n]   XOR d[n]
+*  so on a run of identical bits d[n-1]==d[n] and up==down for the whole
+*  run.  In tiny_pll_charge_pump, `down` gates MNSW directly while `up`
+*  gates MPSW through an inverter -- so up==down==1 turns BOTH legs on and
+*  the net current onto the loop filter is the up/down MISMATCH.
+*
+*  This deck holds `out` (= vctrl) at a fixed voltage with a source and
+*  reports the current for all four (up,down) states, swept across the
+*  usable vctrl range.  The number that matters is icp_both: if it is a
+*  microamp or so, the hypothesis is confirmed and it quantitatively
+*  explains §C24's 161 mV excursion over a 7-UI run on ~120 fF.
+*
+*  CHEAP: four .dc sweeps, seconds.  Still run it under safe_ngspice.sh,
+*  and NEVER while another ngspice is running (../../CLAUDE.md).
+* =====================================================================
+.lib /home/ttuser/pdk/sky130A/libs.tech/ngspice/sky130.lib.spice tt
+.include /home/ttuser/pdk/sky130A/libs.ref/sky130_fd_sc_hd/spice/sky130_fd_sc_hd.spice
+.include e2e_blocks.inc
+.options reltol=0.001 abstol=1e-14
+
+VDD Vdd 0 1.8
+VSS Vss 0 0
+
+* --- bias generator: (VGND VNB VPWR VPB bias_n en enb bias_p) ---
+*     en=Vdd / enb=Vss, exactly as CDR.sch wires it
+x_bias Vss Vss Vdd Vdd bias_n Vdd Vss bias_p tiny_pll_bias_gen
+
+* --- charge pump: (VPWR VPB VGND VNB out up down bias_n bias_p) ---
+x_cp Vdd Vdd Vss Vss out vup vdn bias_n bias_p tiny_pll_charge_pump
+
+* --- hold the output at a forced voltage and read the current through it ---
+*     i(Vout) is current INTO the source from node `out`, so the current the
+*     pump delivers to the filter is -i(Vout).
+Vout out 0 0.791
+Vup  vup 0 0
+Vdn  vdn 0 0
+
+.control
+  save i(Vout)
+
+* (up,down) = (0,0) -- no transition, both legs should be OFF: expect ~0
+  alter Vup = 0
+  alter Vdn = 0
+  dc Vout 0.55 1.15 0.005
+  meas dc icp_00 FIND i(Vout) AT=0.791
+
+* (1,0) -- pure UP: pfet leg only, sources current into the filter
+  alter Vup = 1.8
+  alter Vdn = 0
+  dc Vout 0.55 1.15 0.005
+  meas dc icp_up FIND i(Vout) AT=0.791
+
+* (0,1) -- pure DOWN: nfet leg only, sinks current
+  alter Vup = 0
+  alter Vdn = 1.8
+  dc Vout 0.55 1.15 0.005
+  meas dc icp_dn FIND i(Vout) AT=0.791
+
+* (1,1) -- THE CID CASE: both legs on, net = mismatch
+  alter Vup = 1.8
+  alter Vdn = 1.8
+  dc Vout 0.55 1.15 0.005
+  meas dc icp_both FIND i(Vout) AT=0.791
+* and across the range, to see whether it changes sign anywhere
+  meas dc icp_both_lo FIND i(Vout) AT=0.65
+  meas dc icp_both_hi FIND i(Vout) AT=0.95
+.endc
+.end
