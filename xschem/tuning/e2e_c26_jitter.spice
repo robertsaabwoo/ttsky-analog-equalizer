@@ -61,7 +61,10 @@ x_cdr  Vdd Vss coutp coutm vbias rclkp rclkm CDR_tune
 
 * --- frequency averaged over 600 cycles (the C25-C fix), ~1.0 us of lever ---
   meas tran e1200 WHEN v(rclkp)=0.9 RISE=1200
-  meas tran e1800 WHEN v(rclkp)=0.9 RISE=1800
+  meas tran e1740 WHEN v(rclkp)=0.9 RISE=1740
+* NOTE: RISE=1800 does NOT exist -- the clock only starts after the precharge
+* releases at ~126 ns, so a 3 us run has ~1799 edges, not 1802. Derive the
+* index from (t_end - t_release)/UI, not t_end/UI.
   let f600_MHz = 600/(e1800-e1200)/1e6
   print f600_MHz
 * the same span measured 60 cycles at a time, to show how much the short

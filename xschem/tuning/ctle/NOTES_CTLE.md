@@ -1091,3 +1091,66 @@ order-of-magnitude estimate, and labelled it a prediction. The topology reasonin
 survived; the magnitude was off by ~80×, because "both legs on" says nothing
 about *how well matched* the legs are — and that is the entire quantity. Reading
 a schematic tells you which effects exist, never how big they are.
+
+---
+
+# §C26. Jitter through the chain — partial, and the measurement needs redoing
+
+Ran `e2e_c26_jitter.spice` (the C25-B chain with the recovered clock dumped) and
+`jitter_parse.py`. 162 287 points, 1799 rising edges, 722 of them after 1800 ns.
+
+## Cycle-to-cycle jitter — believable, and acceptable
+
+| | value | as % UI |
+|---|---|---|
+| mean period | 1662.97 ps | — |
+| ideal UI | 1665.00 ps | — |
+| mean error | −2.03 ps | −0.122 % |
+| period RMS | 24.59 ps | **1.48 %** |
+| period pk-pk | 128.81 ps | **7.74 %** |
+
+1.48 % UI RMS cycle-to-cycle is a plausible degradation from §16b's 0.68 % UI
+for the CDR alone on ideal full-rail data — roughly 2×, for real data through a
+channel that closes the eye at the pad. **This number is fine.**
+
+## The phase-wander number is NOT usable as measured
+
+The parser also reports 33.8 % UI RMS / 148 % UI pk-pk of phase error against a
+best-fit constant-period clock. **Do not quote that.** Three problems:
+
+1. **The window still contains settling.** `vctrl` is 0.8019 V at 2.4-2.5 µs and
+   0.7992 V at 2.8-2.9 µs — still moving. Measuring accumulated phase over
+   1.2 µs of a loop that is still converging measures the convergence, not the
+   jitter.
+2. **A best-fit constant-period clock is the wrong reference for a CDR.** The
+   recovered clock is supposed to track the *data*; the correct reference is the
+   ideal bit grid at 1665.00 ps, not a line fitted to the clock's own drift.
+3. **Bang-bang CDRs have unbounded low-frequency phase wander by construction.**
+   Accumulated phase against a free-running reference grows without limit; what
+   matters for BER is phase error *relative to the data*, which the loop tracks
+   out. A long window makes this look arbitrarily bad.
+
+The −0.122 % mean period offset is ~2.2σ given the 24.6 ps spread over 721
+samples (standard error 0.92 ps), so it is suggestive of a small residual
+frequency offset but **not conclusive** — and it is confounded by (1) anyway.
+
+## Deck bug: RISE=1800 does not exist
+
+`meas tran e1800 WHEN v(rclkp)=0.9 RISE=1800` **failed** — there are only 1799
+rising edges in the whole 3 µs run, because the clock does not start until the
+precharge releases at ~126 ns. 3000 ns / 1.665 ns = 1802 UI *of data*, but the
+clock gets ~1799 of them. So the 600-cycle averaging fix from §C25-C did not
+actually execute this run. Use RISE ≤ ~1750, or better, derive the index from
+`(t_end − t_release)/UI` rather than `t_end/UI`.
+
+## What a correct jitter measurement needs
+
+- a **longer run** (≥ 5 µs) so there is a genuinely settled span to measure in,
+  with the analysis window starting well after `vctrl` stops moving;
+- phase error referenced to the **ideal 1665.00 ps grid**, not a best fit;
+- and the honest figure of merit is not raw phase wander but **how much of the
+  0.350 UI eye (§C22) is consumed at the sampling instant** — which needs the
+  data eye and the clock edge in the same measurement, not the clock alone.
+
+`jitter_parse.py` computes both statistics correctly; it is the reference and
+the window that are wrong, not the arithmetic.
