@@ -90,3 +90,48 @@ VERDICT: |vctrl_w4 - vctrl_w3| = 35.7 mV  -> STILL MOVING
 
 C25 batch finished 2026-08-15T02:04:25+00:00
 ==========================================================
+
+---------- E : charge-pump up/down mismatch (C25 hypothesis test) ----------
+deck=cp_mismatch.spice  run manually 2026-08-15 (the queued waiter was killed
+  -- its 'pgrep -f run_c25.sh' matched the agent's own shell, see NOTES C25-E)
+icp_00              =  4.492797e-11
+icp_up              =  1.263240e-06
+icp_dn              =  -1.283747e-06
+icp_both            =  -2.055241e-08
+icp_both_lo         =  2.268645e-09
+icp_both_hi         =  -4.254636e-08
+  -> up 1.263 uA / down 1.284 uA = 1.6% mismatch; both-on leakage 20.6 nA,
+     which is 2.0 mV over a 7-UI run on 121 fF vs the 161 mV observed.
+     The C25 charge-pump hypothesis is REFUTED (accounts for 1.2%).
+
+---------- C26 : jitter through the CTLE+CDR chain ----------
+deck=e2e_c26_jitter.spice  run manually 2026-08-15
+vctrl_w3            =  8.018765e-01 from=  2.400000e-06 to=  2.500015e-06
+vctrl_w4            =  7.992064e-01 from=  2.800000e-06 to=  2.900008e-06
+vctrl_ripp          =  9.382821e-02 from=  2.800000e-06 to=  2.900000e-06
+e1200               =  2.001981e-06
+e1740               =  2.900343e-06
+  NOTE: e1800 FAILED -- only ~1799 rising edges exist in 3 us because the
+  clock starts after the precharge releases at ~126 ns. The 600-cycle
+  averaging fix did not execute this run. Deck since corrected.
+--- edge analysis (jitter_parse.py) ---
+  c26_rclk.raw: 162287 points, 2 vars (declared 162287)
+  rising edges: 1799 total, 722 after 1800 ns
+  
+  --- period statistics over 721 cycles, t > 1800 ns ---
+    mean period        1662.97 ps   ->   601.33 MHz
+    ideal UI           1665.00 ps   ->   600.60 MHz
+    mean error           -2.03 ps   (-0.122 %)
+    period RMS           24.59 ps   =  1.477 % UI
+    period pk-pk        128.81 ps   =  7.736 % UI
+  --- phase error vs a best-fit clock of period 1663.25 ps ---
+    phase RMS           562.94 ps   = 33.810 % UI
+    phase pk-pk        2471.12 ps   = 148.416 % UI
+  
+  The eye the CTLE delivers at the worst PVT corner is 0.350 UI (C22).
+  Peak-to-peak phase error consumes 424.0 % of that.
+
+  READ NOTES_CTLE C26 BEFORE QUOTING THE PHASE NUMBERS: cycle-to-cycle
+  (1.48% UI RMS) is sound, but the phase-wander figures are measured in a
+  window that still contains settling, against a best-fit clock rather than
+  the ideal bit grid, on a loop type with unbounded low-frequency wander.
