@@ -1,21 +1,30 @@
 # CDR / CTLE analog design notes
 
-This project has two real top levels:
+> **The single top level is `ctle_cdr_rx.sch`.** Everything else in this
+> directory is one of its sub-blocks. Retired testbenches and exploration
+> schematics live in `attic/` — see `attic/README.md`.
+>
+> Much of the text below predates that and describes the CTLE and CDR as
+> separate, un-wired blocks. **That is history**: they were wired together and
+> verified end to end (`tuning/ctle/NOTES_CTLE.md` §C23-§C26), then the validated
+> sandbox was promoted into these files. Read `STATUS.md` for the current state.
 
-- **`CTLE.sch`** (sym: `CTLE.sym`) — a continuous-time linear equalizer that cleans up
-  a differential input before it hits the recovery loop.
-- **`CDR.sch`** (sym: `CDR.sym`) — takes a differential clock/data input directly on
-  `vin+`/`vin-`, recovers a clock from it with a bang-bang (Alexander) loop, and
-  outputs the recovered clock on `rclk+`/`rclk-`.
+## Directory layout
 
-`CTLE.sch` and `CDR.sch` are **not wired together yet** — today the CTLE is only
-exercised on its own (`CTLE_testbench.sch`, `CTLE_WITH_LATCH.sch`) and the CDR is
-exercised on its own (`CDR_tb.sch`, `full_tb.sch`) with a clean differential input
-driven straight in. The intended flow is:
+| | |
+|---|---|
+| `ctle_cdr_rx.sch` | **the chip top level** — CTLE → CDR → two inverter chains |
+| `ctle_cdr_rx_lvs.sch` | one-instance wrapper. **Netlist this**, not the macro — netlisting the macro directly makes it the netlist top and emits no `.subckt` for netgen |
+| `CTLE.sch`, `CDR.sch`, … | the sub-blocks, 22 cells in total, all reachable from the top |
+| `attic/` | retired dev and testbench schematics, still on the library path |
+| `tuning/` | the simulation sandbox, decks and design logs |
+| `simulation/` | generated netlists (gitignored) |
+
+The chip signal flow:
 
 ```
- clk+/clk-  ->  [ CTLE ]  ->  vin+/vin-  ->  [ CDR ]  ->  rclk+/rclk-
-              (equalizer)            (bang-bang CDR loop)
+ ua[0]/ua[1] -> [ CTLE ] -> [ CDR ] -> [ inverter_chain x2 ] -> uo_out[0]/uo_out[1]
+                (equalizer)  (bang-bang loop)
 ```
 
 ## CDR.sym pinout

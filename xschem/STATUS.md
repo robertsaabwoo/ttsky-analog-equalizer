@@ -42,6 +42,19 @@ Two consequences to be aware of:
 - The stale hand-edits in `stash@{0}` are now **definitively superseded**. Do not
   pop them. They can be dropped once someone is confident nothing is wanted.
 
+### Directory cleanup, 2026-08-15
+
+`xschem/` now contains **only the 22 cells reachable from the chip top**. The 30
+tracked dev/testbench/exploration schematics (43 files with their symbols) were
+moved to **`xschem/attic/`** — kept rather than deleted because the design logs
+cite them throughout, and deleting would leave those references dangling.
+
+`attic` is on `XSCHEM_LIBRARY_PATH`, so symbols resolve in both directions.
+Verified after the move: the top-level netlist is **byte-identical** to before
+(495 lines), `make lvs` still flattens to 224 devices, `tuning/ctle/subckt_src.sch`
+still resolves `D2S_amp.sym` from the attic, and `attic/full_tb.sch` still
+resolves `CDR.sym` from the parent. Zero "Symbol not found".
+
 ### New top-level for tapeout
 
 `xschem/ctle_cdr_rx.sch` is the analog macro that Tiny Tapeout instantiates:

@@ -196,6 +196,15 @@ What actually shapes the floorplan:
   or exact complementarity.
 - **xschem netlisting fails with rc=1 and no diagnostic when driven from a
   subdirectory** — `PWD` is inherited and trusted. Stamp it explicitly.
+- **`make lvs` silently skips netgen if `lvs.report` is newer than its
+  prerequisites.** You get only the pass/fail line from the shell check, with no
+  circuit contents — so a stale report looks exactly like a fresh run. If you
+  need a genuine re-verification, `rm -f lvs.report *.lvs.spice` first. This bit
+  during the 2026-08-15 cleanup: a "re-verify" printed nothing and had in fact
+  re-run nothing.
+- **`xschem/attic/` must stay on `XSCHEM_LIBRARY_PATH`** (set in
+  `xschem/xschemrc`). Symbols resolve across it in both directions. A missing
+  symbol is resolved *silently* — truncated netlist, "Symbol not found", rc=0.
 
 ---
 
