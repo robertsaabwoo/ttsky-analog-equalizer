@@ -1,11 +1,47 @@
 name: gds
 
+# Layout has not started yet: there is no gds/ or lef/ in this repository, so
+# the Tiny Tapeout GDS/precheck/viewer jobs have nothing to build from.  Rather
+# than let every push produce a red run for work that legitimately has not been
+# done, the pipeline below first checks whether the GDS actually exists and
+# skips the build if it does not.  The moment `mag/ make update_gds` writes
+# gds/<top>.gds and lef/<top>.lef, this workflow starts doing real work with no
+# further edits.
+
 on:
   push:
   workflow_dispatch:
 
 jobs:
+  check_gds:
+    runs-on: ubuntu-24.04
+    outputs:
+      top_module: ${{ steps.top_module.outputs.TOP_MODULE }}
+      have_gds: ${{ steps.have_gds.outputs.HAVE_GDS }}
+    steps:
+      - name: checkout repo
+        uses: actions/checkout@v4
+
+      - name: Read top module name
+        id: top_module
+        run: |
+          echo TOP_MODULE=`yq '.project.top_module' info.yaml` | tee $GITHUB_OUTPUT
+
+      - name: Check whether the layout exists yet
+        id: have_gds
+        run: |
+          TOP='${{ steps.top_module.outputs.TOP_MODULE }}'
+          if [ -f "gds/$TOP.gds" ] && [ -f "lef/$TOP.lef" ]; then
+            echo "HAVE_GDS=true" >> $GITHUB_OUTPUT
+            echo "Found gds/$TOP.gds and lef/$TOP.lef - running the full TT flow."
+          else
+            echo "HAVE_GDS=false" >> $GITHUB_OUTPUT
+            echo "::notice title=GDS not built yet::gds/$TOP.gds is absent - layout has not started. Skipping the GDS, precheck and viewer jobs. See README.md 'What is not done'."
+          fi
+
   gds:
+    needs: check_gds
+    if: needs.check_gds.outputs.have_gds == 'true'
     runs-on: ubuntu-24.04
     steps:
       - name: checkout repo
@@ -13,29 +49,26 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Read top module name
-        id: top_module
-        run: |
-          echo TOP_MODULE=`yq '.project.top_module' info.yaml` | tee $GITHUB_OUTPUT
-
       - name: Create and publish the GDS artifact
         uses: TinyTapeout/tt-gds-action/custom_gds@ttsky25b
         with:
-          top_module: ${{ steps.top_module.outputs.TOP_MODULE }}
-          gds_path: gds/${{ steps.top_module.outputs.TOP_MODULE }}.gds
-          lef_path: lef/${{ steps.top_module.outputs.TOP_MODULE }}.lef
+          top_module: ${{ needs.check_gds.outputs.top_module }}
+          gds_path: gds/${{ needs.check_gds.outputs.top_module }}.gds
+          lef_path: lef/${{ needs.check_gds.outputs.top_module }}.lef
           verilog_path: src/project.v
           pdk: sky130A
 
   precheck:
-    needs: gds
+    needs: [check_gds, gds]
+    if: needs.check_gds.outputs.have_gds == 'true'
     runs-on: ubuntu-24.04
     steps:
       - name: Run Tiny Tapeout Precheck
         uses: TinyTapeout/tt-gds-action/precheck@ttsky25b
 
   viewer:
-    needs: gds
+    needs: [check_gds, gds]
+    if: needs.check_gds.outputs.have_gds == 'true'
     runs-on: ubuntu-24.04
     permissions:
       pages: write      # to deploy to Pages

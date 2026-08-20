@@ -1,7 +1,7 @@
 # Tiny Tapeout project information
 project:
   title:        "Analog CTLE Clock Recovery"      # Project title
-  author:       ""      # Your name -- TODO: fill in
+  author:       "Robert Saab"      # Your name
   discord:      ""      # Your discord username, for communication and automatically assigning you a Tapeout role (optional)
   description:  "A 600 Mb/s analog receiver front end: a continuous-time linear equalizer (CTLE) that undoes the loss of the analog pin path, feeding a reference-less bang-bang (Alexander) clock-and-data-recovery loop that locks its ring oscillator to the incoming data and outputs the recovered clock"
   language:     "Analog" # other examples include Verilog, Amaranth, VHDL, etc
