@@ -1,12 +1,3 @@
-<!---
-
-This file is used to generate your project datasheet. Please fill in the information below and delete any unused
-sections.
-
-You can also include images in this folder and reference them in the markdown. Each image must be less than
-512 kb in size, and the combined size of all images must be less than 1 MB.
--->
-
 ## How it works
 
 This is a fully analog **600 Mb/s receiver front end**: an equalizer that undoes the loss of the chip's own
@@ -66,34 +57,45 @@ either output, or that the two are exactly non-overlapping.
 ### Simulated performance
 
 Verified end to end (`xschem/tuning/e2e_ctle_cdr_tb.spice`) with data driven through a worst-case
-500 Ω / 5 pF model of the analog pin path:
+500 Ω / 5 pF model of the analog pin path, at tt / 27 °C / 1.8 V. Section numbers refer to the design log
+`xschem/tuning/ctle/NOTES_CTLE.md` (§C…) and `xschem/tuning/NOTES.md` (§…).
 
-| quantity | value |
-|---|---|
-| data rate | 600.6 Mb/s (UI 1.665 ns) |
-| recovered clock frequency | 600.64 MHz — a **full-rate** clock, one cycle per bit |
-| `vctrl` when locked | 0.791 V |
-| signal at the CTLE input (after the pad) | 64 mV differential |
-| signal at the CTLE output | 299 mV differential |
-| recovered clock swing | rail to rail |
-| CTLE eye, worst PVT corner (ss / 125 °C / 1.62 V) | 174 mV, 0.350 UI |
-| recovered clock jitter (CDR alone) | 0.68 % UI RMS |
+| quantity | value | source |
+|---|---|---|
+| data rate | 600.6 Mb/s (UI 1.665 ns) | §14 |
+| recovered clock frequency | 600.64 MHz — a **full-rate** clock, one cycle per bit | §C23 |
+| `vctrl` when locked | 0.791 V, the same point the CDR reaches alone (0.792 V) | §C23, §17e |
+| signal at the CTLE input (after the pad) | 64 mV differential — the eye is shut at the pad | §C23 |
+| signal at the CTLE output | 299 mV differential | §C23 |
+| recovered clock swing | rail to rail (1.870 V) | §C23 |
+| CTLE eye, worst PVT corner (ss / 125 °C / 1.62 V) | 174 mV, 0.350 UI | §C22 |
+| combined channel + CTLE at Nyquist, 27 corners | −2.03 … +0.66 dB | §C18 |
+| recovered clock jitter, CDR alone on ideal data | 0.68 % UI RMS, 2.5 % UI pk-pk | §16b |
+| recovered clock jitter, full chain on PRBS7 (cycle-to-cycle) | 24.59 ps RMS = 1.48 % UI; 7.74 % UI pk-pk | §C26 |
+| startup precharge over 45 PVT corners | 45/45 pass, release 136-167 ns | §20a |
 
 Those figures are for an alternating 0101 input, the easiest pattern for a bang-bang phase detector because
 every bit is a transition. On a PRBS7 pattern — half the transition density, and runs of up to seven identical
 bits — the loop still acquires, but it takes about **3× longer** (roughly 3 µs rather than 1 µs), overshoots
 its final control voltage by ~37 mV on the way, and settles with ~2.8× the residual control-voltage ripple
-(94 mV versus 34 mV). This is inherent to a bang-bang loop rather than a defect: each phase-detector decision
-moves the control voltage by a fixed step, and during a run of identical bits there are no transitions, so the
-loop is briefly blind and phase error accumulates before it can be corrected.
+(93.8 mV versus 33.7 mV). This is inherent to a bang-bang loop rather than a defect: each phase-detector
+decision moves the control voltage by a fixed step (~17 mV here), and during a run of identical bits there are
+no transitions, so the loop is briefly blind and phase error accumulates before it can be corrected. (§C25-B,
+§C25-E)
+
+Input amplitude matters: 200 mVpp differential at the pad is comfortable, and at 100 mVpp the signal path
+still scales linearly but the loop wanders ±40 mV about its lock point. 100 mVpp should not be quoted as the
+sensitivity limit — the actual limit has not been found. (§C25-D)
 
 **Known limitations:**
 
 - The ring oscillator cannot reach 600 MHz at 125 °C, or at a 1.62 V supply. The design is intended for room
-  temperature and a nominal 1.8 V supply; this limit is understood and accepted rather than fixed.
-- **Jitter has not been measured through the full chain.** The residual control-voltage ripple on real data is
-  known, but how much sampling-phase error it produces — the number that actually decides whether the link
-  works — has not been characterised.
+  temperature and a nominal 1.8 V supply; this limit is characterised and accepted rather than fixed. (§20b)
+- **Sampling-phase jitter has not been measured.** Cycle-to-cycle jitter through the full chain is measured
+  and acceptable (1.48 % UI RMS), but how much of the 0.350 UI eye the loop's residual wander consumes at the
+  sampling instant — the number that actually decides whether the link works — has not been characterised.
+  §C26 explains why the phase figure that run produced is not usable and what a correct measurement needs.
+- **No PVT on the combined loop, and no layout**, so no extracted parasitics and no post-layout simulation.
 
 ## How to test
 
@@ -108,15 +110,16 @@ On hardware:
 3. Watch `uo[0]` on a scope or a fast counter. When the loop is locked it is a rail-to-rail square wave at the
    **bit rate** — about **600 MHz** for 600 Mb/s data, since this is a full-rate CDR. `uo[1]` should be its
    inverse, at the same frequency but not the same duty cycle.
-4. Lock takes a few hundred nanoseconds after power-up, and does not depend on which polarity the data
-   happens to be in when the supply comes up.
+4. Expect lock within a few microseconds of power-up: in simulation the loop settles in ~1 µs on a 0101
+   pattern and ~3 µs on PRBS7, and it does not depend on which polarity the data happens to be in when the
+   supply comes up (§C25-B, §C25-C).
 
 Sweeping the input data rate slowly around 600 Mb/s and watching where `uo[0]` stops tracking maps out the
 loop's lock range. Because the oscillator's reach is the limiting factor, expect that range to narrow as the
 die heats up.
 
 In simulation, the decks under `xschem/tuning/` reproduce all of the above; `e2e_ctle_cdr_tb.spice` is the
-full chain and `ctle/` holds the equalizer-only AC, eye and PVT decks. All of them must be run through
+full chain and `xschem/tuning/ctle/` holds the equalizer-only AC, eye and PVT decks. All of them must be run through
 `xschem/tuning/safe_ngspice.sh`, which caps memory and wall-clock time.
 
 ## External hardware
