@@ -19,3 +19,8 @@ xschem/tuning/*.log
 xschem/tuning/ctle/*.log
 xschem/simulation/
 xschem/tuning/c25_batch.log
+
+# Unrelated scratch that lives in this working tree but is not part of the
+# project: a separate magic exercise, and the per-cell LVS reports written by
+# mag/lvs_cell.sh.
+magic_challenge/
