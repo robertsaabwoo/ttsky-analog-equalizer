@@ -1,0 +1,29 @@
+name: test
+
+# Repository-consistency tests.  These run on a stock ubuntu runner: no PDK, no
+# ngspice, no magic, no network access beyond installing pytest.  They check
+# that the documentation, info.yaml, src/project.v, the magic top cell and the
+# frozen xschem hierarchy all still agree with each other.
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install test dependencies
+        run: pip install -r test/requirements.txt
+
+      - name: Run the consistency test suite
+        run: pytest -v test/
