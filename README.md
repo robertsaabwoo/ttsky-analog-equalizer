@@ -100,7 +100,20 @@ ripple on a 357 MHz/V oscillator is ±16 MHz of instantaneous frequency.
 Against the eye budget that matters: the CTLE delivers 0.350 UI at the worst
 PVT corner, so ±0.175 UI of margin, and phase error is 0.120 UI RMS — the eye
 edge sits at about 1.46σ. At the nominal corner measured here, 13 of 1201
-samples land within 25 mV of the decision threshold. That does not say the
+samples land within 25 mV of the decision threshold.
+
+That number was checked before it was published, because it is unflattering
+enough to be worth doubting. The recovered clock available to the measurement
+is the *buffered output pin*, not the phase detector's internal sampling clock,
+so it could in principle have been sampling at the wrong instant. Sweeping the
+sampling phase across a full UI (§C27, `c27_eyescan.py`) shows the output
+clock's rising edge already sits at the eye centre — 13 samples below 25 mV
+there, against 224 at the crossing — so the figure is measured at the best
+sampling phase available, not an arbitrary one. The same sweep turned up
+something sharper: the eye is **steeply asymmetric**. Moving 83 ps (0.05 UI) to
+one side of the optimum takes near-threshold samples from 13 to 107. The loop is
+not dithering about a comfortable centre; it is dithering about a point with a
+cliff just to one side of it. That does not say the
 design fails — frequency lock is exact to 0.011 % with no cycle slips — but it
 does say the margin is thinner than "it locks" implies, and that the residual
 ripple is not cosmetic. The run that would decide it is phase error at the

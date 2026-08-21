@@ -1255,3 +1255,56 @@ at only ~1.46σ. That is not a comfortable link.
   (T2) is still generated-but-never-run, and phase error at the ss/125 °C/1.62 V
   corner — where the eye is 0.350 UI rather than nominal — is unmeasured. That
   is the run that would decide whether this design closes.
+
+## Confirmation — the finding is not a measurement artefact
+
+The result above is unflattering enough that it was checked before being
+published, from the same rawfile, no re-simulation (`c27_eyescan.py`).
+
+**The worry.** An Alexander PD samples on *both* clock edges: one lands in the
+eye, the other on the data crossing. `rclkp` is the **buffered output pin**,
+downstream of the output inverter chain — not the detector's internal sampling
+clock — so "the eye at the rclkp rising edge" is the eye at some unknown fixed
+offset from the true sampling instant. If that offset happened to put the
+measurement near a crossing, small `|coutp−coutm|` values would be correct by
+design and the whole finding would be an artefact.
+
+**The check.** Sweep an offset τ across one UI, sampling at every rclkp rising
+edge + τ:
+
+| τ (UI) | mean \|diff\| | samples < 25 mV |
+|---|---|---|
+| −0.500 | 136.8 mV | 224 |
+| −0.250 | 169.1 mV | 56 |
+| −0.100 | 181.0 mV | 10 |
+| **0.000** | **181.5 mV** | **13** |
+| +0.050 | 158.2 mV | 107 |
+| +0.250 | 146.4 mV | 115 |
+| +0.500 | 136.3 mV | 228 |
+
+τ = 0 is the optimum. **The rclkp rising edge already sits at the eye centre**,
+so the published number was measured at the best sampling phase available, not
+an arbitrary one. The buffered output is a valid proxy for the internal
+sampling instant.
+
+Note that comparing the *mean* at each edge does not identify the crossing
+sample — a first attempt at this check did exactly that and returned
+"ambiguous". On PRBS7 about half of all bit boundaries have no transition, so
+the differential is still at full amplitude there and the mean stays high
+(136 mV even at τ = ±0.5 UI). The discriminator is the **count of near-zero
+samples**: 224 at the crossing versus 13 at the centre.
+
+**A second finding, from the same sweep: the eye is steeply asymmetric.** Going
+from τ = 0 to τ = +0.05 UI — 83 ps — takes near-threshold samples from 13 to
+107, an 8× jump, while the −0.15 … 0 side is a flat plateau. The link has very
+little margin on one side of its own optimum. Combined with 0.120 UI RMS of
+phase wander, this is the sharper statement of the risk: the loop is not
+dithering about a comfortable centre, it is dithering about a point with a cliff
+83 ps to one side of it.
+
+**Also confirmed:** `rclkp` swings −0.023 to 1.850 V so the 0.9 V edge
+extraction is meaningful; there are 0 duplicate and 0 skipped grid slots, so no
+cycle slips; max |phase| is 0.450 UI, inside the ±0.5 UI where `round()` is
+unambiguous; and the near-threshold samples carry 26.1 % UI mean |phase| against
+8.6 % for the rest — they are jitter-driven, not an ISI artefact on particular
+bit patterns.
