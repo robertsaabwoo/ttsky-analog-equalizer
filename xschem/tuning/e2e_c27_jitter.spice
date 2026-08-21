@@ -1,0 +1,89 @@
+* =====================================================================
+*  C27: JITTER, done properly -- the measurement C26 got wrong
+*
+*  C26 produced a believable cycle-to-cycle number (24.59 ps RMS, 1.48 % UI)
+*  and an UNUSABLE phase-wander number (33.8 % UI RMS). Per NOTES_CTLE.md
+*  §C26 the arithmetic in jitter_parse.py was fine; the RUN was wrong:
+*
+*    1. the 3 us window still contained settling -- vctrl was 0.8019 V at
+*       2.4-2.5 us and 0.7992 V at 2.8-2.9 us, i.e. still moving, so the
+*       measurement measured convergence, not jitter;
+*    2. phase was referenced to a best-fit constant-period clock, which is
+*       the wrong reference for a CDR -- the clock tracks the DATA;
+*    3. raw phase wander is not the figure of merit anyway. What decides
+*       BER is how much of the 0.350 UI eye (§C22) is consumed at the
+*       SAMPLING INSTANT, which needs the data and the clock in the same
+*       measurement.
+*
+*  This deck fixes all three:
+*    - 6 us, so there is a genuinely settled span to measure in, and the
+*      analysis window starts at 4 us (vctrl settling is proven below, in
+*      the deck itself, by three separated AVG windows);
+*    - dumps the CTLE output differential pair ALONGSIDE the recovered
+*      clock, so c27_analyze.py can sample the data at the clock edge and
+*      report the eye actually consumed -- the honest FOM;
+*    - phase error is referenced to the ideal 1665.00 ps bit grid in the
+*      analyzer, not to a fit.
+*
+*  MEMORY SAFETY (../../CLAUDE.md): `write` is given an EXPLICIT vector
+*  list, and `save` bounds what is stored in the first place. 4 vectors
+*  over 6 us at 20 ps is ~300k points ~ 40 MB of ASCII. A BARE `write`
+*  here -- every node, every timepoint -- is what OOM-crashed the VM.
+* =====================================================================
+.lib /home/ttuser/pdk/sky130A/libs.tech/ngspice/sky130.lib.spice tt
+.include /home/ttuser/pdk/sky130A/libs.ref/sky130_fd_sc_hd/spice/sky130_fd_sc_hd.spice
+.include e2e_blocks.inc
+.include e2e_prbs6u.inc
+.options method=gear reltol=0.001 abstol=1e-12
+
+.param vcm=0.9
+.param amp=0.2
+.param rpad=500 cpad=5p
+
+VDD Vdd 0 1.8
+VSS Vss 0 0
+Vb  vbias 0 0.9
+
+Edinp dinp 0 vol='vcm + 0.5*amp*(v(dsrc)-0.5)'
+Edinm dinm 0 vol='vcm - 0.5*amp*(v(dsrc)-0.5)'
+
+Rpadp dinp cinp 'rpad'
+Cpadp cinp 0    'cpad'
+Rpadm dinm cinm 'rpad'
+Cpadm cinm 0    'cpad'
+
+x_ctle coutp coutm cinp cinm Vdd Vss vbias CTLE_tune
+x_cdr  Vdd Vss coutp coutm vbias rclkp rclkm CDR_tune
+
+* .op treats a capacitor as an OPEN, so the precharge one-shot is dead on
+* arrival without this -- see CLAUDE.md and NOTES.md §19.
+.ic v(x_cdr.x20.nrc)=0
+.op
+
+.control
+  save v(rclkp) v(coutp) v(coutm) v(x_cdr.net1)
+  tran 20p 6000n
+
+* --- settling PROOF: three separated windows. If w5 and w6 agree to well
+*     under the ripple, the loop is settled and the 4 us analysis window is
+*     legitimate. This is the check C26 skipped.
+  meas tran vctrl_w4 AVG v(x_cdr.net1) FROM=3900n TO=4000n
+  meas tran vctrl_w5 AVG v(x_cdr.net1) FROM=4900n TO=5000n
+  meas tran vctrl_w6 AVG v(x_cdr.net1) FROM=5800n TO=5900n
+  meas tran vctrl_ripp PP v(x_cdr.net1) FROM=5800n TO=5900n
+
+* --- frequency averaged over ~1000 cycles, well inside the settled span ---
+* Edge budget: the clock starts only after the precharge releases at ~126 ns,
+* so a 6 us run yields ~(6000-126)/1.665 = ~3528 rising edges, NOT 3604.
+* C26's deck asked for RISE=1800 out of 1799 and the measure silently failed.
+* Stay well clear of the ceiling.
+  meas tran e2400 WHEN v(rclkp)=0.9 RISE=2400
+  meas tran e3400 WHEN v(rclkp)=0.9 RISE=3400
+  let f1000_MHz = 1000/(e3400-e2400)/1e6
+  print f1000_MHz
+
+* --- dump for edge extraction + sampling-instant eye (EXPLICIT list) ---
+  set filetype=ascii
+  write c27_chain.raw v(rclkp) v(coutp) v(coutm)
+.endc
+.end

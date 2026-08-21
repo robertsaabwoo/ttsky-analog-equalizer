@@ -1,0 +1,5 @@
+* synthetic fixture -- NOT a simulation result
+nb_h = 8.200000e-01
+vc_h = 7.900000e-01
+t_rel = 1.500000e-07
+exit rc=0

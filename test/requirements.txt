@@ -1,2 +1,5 @@
+# Dependencies for the repository-consistency test suite (see test/README.md).
+# The tests themselves are pure stdlib apart from the YAML parser, and need no
+# PDK, no simulator and no network.
 pytest==8.1.1
-cocotb==1.8.1
+PyYAML==6.0.1

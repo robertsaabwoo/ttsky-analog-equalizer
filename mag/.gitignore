@@ -2,6 +2,7 @@
 *ext
 *.fb.txt
 lvs.report
+*.lvs.report
 *.lvs.spice
 *magicrc
 *nodes
