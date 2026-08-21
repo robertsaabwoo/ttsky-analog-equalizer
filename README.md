@@ -6,8 +6,10 @@ A fully analog receiver front end for Tiny Tapeout (sky130, custom GDS): a
 continuous-time linear equalizer (CTLE) that undoes the loss of the chip's own
 analog pin path, feeding a **reference-less bang-bang clock-and-data-recovery
 loop** that locks an on-chip ring oscillator to the incoming data. There is no
-reference clock on the chip — the output clock is generated from the data
-itself, which is why `clock_hz` is 0 and the harness `clk` pin is unused.
+reference clock anywhere on the die — the output clock is generated from the
+data itself, which is why `clock_hz` is 0 and the harness `clk` pin is unused.
+
+![Block diagram of the CTLE + CDR receiver signal path](docs/img/block-diagram.svg)
 
 - **[Project datasheet](docs/info.md)** — how it works, pinout, how to test on hardware.
 - **[Verification methodology](docs/DESIGN.md)** — what was simulated, how, and what each number means.
@@ -15,23 +17,11 @@ itself, which is why `clock_hz` is 0 and the harness `clk` pin is unused.
   and [`xschem/tuning/ctle/NOTES_CTLE.md`](xschem/tuning/ctle/NOTES_CTLE.md)
   (CTLE and end-to-end, §C1-§C26). Chronological, including the dead ends.
 
-## State of the project
-
-| | |
-|---|---|
-| **Works** | The full chain is simulated end to end and locks: 200 mVpp differential in through a worst-case model of the TT analog pin path → CTLE → CDR → a recovered 600.64 MHz clock, on both an alternating 0101 pattern and PRBS7. |
-| **Verified** | ngspice: AC across 27 PVT corners, transient eye diagrams at the corner extremes, 45-corner PVT on the startup cell, an 11-corner VCO tuning-range sweep, and four 3 µs full-chain transients (pattern, polarity, amplitude). Netlist-level: the promoted schematics were compared subcircuit-by-subcircuit against the validated sandbox — all 17 leaf subcircuits matched. |
-| **Not done** | **Layout.** Nothing has been drawn. `mag/` holds the empty 2×2 frame, the toolchain, and a proven-to-run `make lvs` that today correctly reports 0 devices on the layout side against 224 on the source side. Also not done: PVT on the *combined* loop, and a trustworthy sampling-phase jitter measurement (see the table). |
-| **Known limitation** | The ring oscillator cannot reach 600 MHz at 125 °C or at a 1.62 V supply. This is characterised, understood (it is RC-limited by the load resistor, not current-starved) and **accepted**, not fixed — see §20b. |
-
-Because there is no GDS yet, the Tiny Tapeout `gds` workflow is gated on the
-existence of `gds/` and skips itself rather than failing; there is deliberately
-no GDS badge above until there is something real behind it.
-
 ## Measured results
 
 Every number below comes from a specific simulation recorded in the design
-logs, cited in the last column. Nothing here is estimated or extrapolated.
+logs, cited in the last column. Nothing here is estimated or extrapolated, and
+the two things that were *not* measured say so.
 
 | quantity | value | where it comes from |
 |---|---|---|
@@ -58,64 +48,108 @@ logs, cited in the last column. Nothing here is estimated or extrapolated.
 | Startup precharge across PVT | **45/45 corners pass** from a cold supply ramp with no `.ic`: seed 0.693-0.908 V, release 136-167 ns | §20a |
 | VCO tuning range (tt / 27 °C) | 514-621 MHz; 6 of 11 swept corners pass, the 5 failures are 125 °C and 1.62 V | §20b |
 | Combined-loop PVT | **not measured** — the T2 tier is generated and ready but was never run | `xschem/tuning/HANDOFF.md` §5 |
-| Flattened device count (source side of LVS) | 224 devices, 129 nets | `mag/LAYOUT_HANDOFF.md` |
-| Die area | 2×2 tiles = 334.88 × 225.76 µm = 75 603 µm² | `mag/LAYOUT_HANDOFF.md` |
+| Flattened device count (source side of LVS) | 224 devices, 129 nets, 1162 µm² of drawn device area | `mag/LAYOUT_HANDOFF.md` |
+| Die area available | 2×2 tiles = 334.88 × 225.76 µm = 75 603 µm² | `mag/LAYOUT_HANDOFF.md` |
 
-The headline is the second and fifth rows together: **the eye is already shut at
-the pad**, and one CTLE stage reopens it to 174 mV / 0.350 UI at the worst
-corner. The equalizer is not an optimization here, it is what makes the link
-exist at all.
+### The equalizer is not an optimization — it is what makes the link exist
 
-## Signal path
+![Eye diagrams at the pad, through the as-drawn CTLE, and through the retuned CTLE](docs/img/eye-before-after.svg)
 
-```
-                            THE CHANNEL IS THE CHIP'S OWN PIN
-                        (TT spec: < 500 Ω series, < 5 pF pad
-                         = a 63.7 MHz pole, -13.7 dB at Nyquist)
+The same PRBS7 data at three points in the path, measured in ngspice. This is
+the §C11 experiment — **1 Gb/s through a 500 Ω / 2 pF channel**, which is the
+run whose waveform data was kept; the shipped operating point is 600.6 Mb/s
+through 500 Ω / 5 pF, and its eye numbers are the §C22 rows in the table above.
+The shape of the result is the same at both: the channel shuts the eye, the CTLE
+as originally drawn could not reopen it, and the retuned CTLE does. The three
+heights and widths printed on the figure reproduce the §C11 table exactly,
+because they are computed by the repository's own `eyemetrics.py`.
 
-  200 mVpp diff        ┌───────────┐        64 mVpp        ┌────────────────┐
-  600.6 Mb/s   ─ua[0]─►│  R  ──┬── │──────── eye closed ──►│      CTLE      │
-  PRBS7        ─ua[1]─►│       C   │                       │  degenerated   │
-                       └───────────┘                       │   diff pair    │
-                          pad RC                           └───────┬────────┘
-                                                                   │ 299 mVpp
-                                                      equalized data│ eye reopened
-     ua[2] = vbias (~0.9 V, external)                              │
-                                                                   ▼
-   ┌───────────────────────────── CDR (reference-less) ─────────────────────────┐
-   │                                                                            │
-   │   ┌──────────────────────┐   up   ┌────────────┐      ┌─────────────────┐  │
-   │   │  Alexander phase     ├───────►│   charge   ├─────►│   loop filter   │  │
-   │   │  detector            │  down  │    pump    │      │  (~10x smaller  │  │
-   │   │  4x DFF + 2x XOR     ├───────►│            │      │   than a PLL's) │  │
-   │   └──────────▲───────────┘        └────────────┘      └────────┬────────┘  │
-   │              │                                          vctrl  │ 0.791 V   │
-   │              │ sampling clock                                  ▼           │
-   │              │                    ┌───────────────────────────────────┐    │
-   │              └────────────────────┤  5-stage differential ring VCO    │    │
-   │                                   └─────────────────┬─────────────────┘    │
-   │   ┌─────────────────────┐                           │                      │
-   │   │ startup precharge   │──── seeds vctrl for       │                      │
-   │   │ (M5-replica bias)   │     ~130 ns, then         │                      │
-   │   └─────────────────────┘     removes itself        │                      │
-   └─────────────────────────────────────────────────────┼──────────────────────┘
-                                                         │
-                                    ┌────────────────────┴────────────────────┐
-                                    ▼                                         ▼
-                            inverter chain                            inverter chain
-                                    │                                         │
-                                    ▼                                         ▼
-                          uo[0] recovered clock                     uo[1] inverted phase
-                            600.64 MHz, full rate               (also loads the ring
-                                                                 symmetrically — not
-                                                                 a true complement)
-```
+![Frequency response: the pin path, the CTLE as drawn, and the retuned CTLE's measured points](docs/img/channel-vs-ctle.svg)
 
-The loop is **phase-only**: an Alexander detector reports early/late, never
-frequency. That has two consequences that drive most of the design log — the
-loop filter had to shrink ~10× from its PLL-derived values for acquisition to
-be possible at all (§16), and cold start needed a real startup circuit because
-~50 % of power-ups otherwise never acquired (§17).
+Why it was closed in the first place. The Tiny Tapeout analog pin path is
+specified at under 500 Ω and under 5 pF, which is a 63.7 MHz pole — **4.7×
+below the 300 MHz Nyquist frequency** of 600 Mb/s data — and costs 13.7 dB
+there. The CTLE as first drawn had no peaking at all (its degeneration zero
+landed on top of its own output pole, §C2), so it could not help. Retuned, it
+delivers +13.32 dB at Nyquist, cancelling the channel to within half a dB, and
+to ±2 dB across all 27 PVT corners. The ISI is linear, so a linear equalizer
+genuinely inverts it: an eye closed by a channel is recoverable in a way that
+one closed by noise is not.
+
+### Jitter
+
+![Histogram of recovered-clock periods, 721 cycles, PRBS7](docs/img/clock-jitter.svg)
+
+Cycle-to-cycle jitter through the whole chain on real data is 1.48 % UI RMS —
+about 2× the CDR's 0.68 % on ideal full-rail data (§16b), which is a reasonable
+price for a channel that closes the eye at the pad. **The phase-wander number
+from the same run is deliberately not plotted**: §C26 measured it against a
+best-fit clock, in a window that still contained settling, on a loop type that
+has unbounded low-frequency wander by construction, and records it as not
+usable. The measurement that would settle the question is specified in §C26 and
+has not been run.
+
+## What works, what is verified, what is not done
+
+| | |
+|---|---|
+| **Works** | The full chain is simulated end to end and locks: 200 mVpp differential in through a worst-case model of the TT analog pin path → CTLE → CDR → a recovered 600.64 MHz clock, on an alternating 0101 pattern and on PRBS7, at both data polarities. |
+| **Verified** | ngspice: AC across 27 PVT corners, PRBS7 eye diagrams at the corner extremes, 45-corner PVT on the startup cell from a cold supply ramp, an 11-corner VCO tuning-range sweep, and four 3 µs full-chain transients (pattern, polarity, amplitude). Netlist-level: the promoted schematics were compared subcircuit-by-subcircuit against the validated sandbox — all 17 leaf subcircuits matched exactly. |
+| **Scope line: layout** | The schematic design is **frozen and netlist-verified**, and the physical flow is wired up and proven to run before any polygon is drawn: `make lvs` in `mag/` reads `src/project.v` and the xschem netlist and today correctly reports 0 devices on the layout side against 224 on the source side. The device inventory is measured per block (1162 µm² drawn against 75 603 µm² available, so area is not the constraint), the floorplan guidance is written up in `mag/LAYOUT_HANDOFF.md` and `mag/MAGIC_GUIDE.md`, and one leaf cell (`mag/d_latch.mag`) is drawn as a pathfinder. **The macro itself has not been drawn.** |
+| **Also not done** | PVT on the *combined* loop (tier T2 is generated, never run), and a trustworthy sampling-phase jitter measurement. Both are listed in the results table as not measured. |
+| **Known limitation** | The ring oscillator cannot reach 600 MHz at 125 °C or at a 1.62 V supply. It is characterised (above ~0.85 V the ring is RC-limited by its load resistor, not current-starved, so more control voltage buys nothing), understood, and **accepted** rather than fixed — §20b. |
+
+Because there is no GDS yet, the Tiny Tapeout `gds` workflow is gated on the
+existence of `gds/` and skips itself instead of failing, and there is
+deliberately no GDS badge above until there is something real behind it.
+
+## How it was verified
+
+The short version: **cheap checks first, and every pass criterion written in
+code rather than judged by eye.** AC before transient, block before loop,
+open-loop VCO reach before closed-loop acquisition; a three-tier PVT harness
+that generates its decks from the schematics, runs them strictly sequentially
+under a memory/wall-clock guard, and collects them with explicit pass/fail
+rules; and a netlist-level equivalence check when the validated sandbox was
+promoted into the real schematics.
+
+**[docs/DESIGN.md](docs/DESIGN.md)** lays that out as a table — the question
+each stage had to answer, the deck that answered it, the result, and the log
+section — followed by the measurement traps that produced wrong-but-plausible
+numbers, and an explicit list of what is *not* verified.
+
+## Four things that went wrong, and how they were caught
+
+The design logs keep negative results on purpose. These are the four that
+mattered most.
+
+1. **A 2× error in the frequency plan cost three sessions.** The target had
+   been written down as 300 MHz — which is the *square-wave* rate of alternating
+   data, not the baud rate. The design is 600 Mb/s, UI 1.665 ns. Everything
+   downstream had been tuned against a number that was wrong by a factor of two,
+   and the loop started locking as soon as it was corrected. (§14)
+2. **Half of all power-ups never acquired lock, and it depended on the data
+   polarity at power-on.** A bang-bang detector is phase-only, so the loop has no
+   way back if the control voltage starts below the oscillator's dead-zone cliff.
+   The fix is a startup cell that seeds the control voltage for ~130 ns and then
+   electrically removes itself (~1 fA afterwards). Its bias is a scaled replica
+   of the ring's own tail device, so the seed tracks the cliff over process,
+   voltage and temperature instead of being a hard-coded voltage — which is why
+   all 45 corners pass. (§16g/h → §17, §20a)
+3. **A mechanism written down from the schematic was wrong by 80×.** The residual
+   control-voltage ripple on PRBS7 was attributed to charge-pump up/down mismatch
+   integrating over runs of identical bits, complete with an order-of-magnitude
+   estimate. Measuring the pump directly refuted it: the mismatch is 20.6 nA, not
+   the ~1.7 µA predicted, and accounts for 1.2 % of the effect. The real cause is
+   ordinary bang-bang quantisation — 1.27 µA × 1.665 ns / 121 fF ≈ 17 mV per
+   update, so ~35 mV pk-pk expected against 33.7 mV measured. Reading a schematic
+   tells you which effects exist, never how big they are. (§C25-E)
+4. **A conclusion of my own was premature and had to be withdrawn.** A 2 µs
+   PRBS7 run showed the control voltage still moving and was recorded as "does
+   not settle". Running the same trajectory to 3 µs showed it had been caught at
+   the peak of an overshoot: +37 mV, −26 mV, −2.7 mV — a damped ring, not a
+   runaway. The earlier section is kept in the log with the correction attached
+   rather than edited away. (§C24 → §C25-B)
 
 ## Repository layout
 
@@ -132,26 +166,34 @@ be possible at all (§16), and cold start needed a real startup circuit because
 | `xschem/tuning/HANDOFF.md` | current state and open items |
 | `xschem/tuning/c25_summary.txt` | raw `meas` output of the four 3 µs end-to-end runs |
 | `docs/DESIGN.md` | verification methodology — start here to understand *how* it was checked |
+| `docs/img/` | the figures above |
+| `docs/tools/` | the pure-stdlib SVG generators that build them from the simulation data |
 | `src/project.v` | blackbox Verilog: the pad ↔ macro wiring that LVS checks |
 | `mag/` | Magic layout: `make lvs` / `make drc` / `make update_gds`, plus `LAYOUT_HANDOFF.md` |
-| `test/` | repository-consistency tests (pytest, no PDK or simulator needed) |
+| `test/` | repository-consistency and analysis-tool tests (pytest, no PDK or simulator needed) |
 
 ## Tests
-
-The test suite checks the things that rot silently: that `info.yaml`,
-`src/project.v` and the magic top cell still agree on the module name, tiles and
-pin mapping; that every symbol in the frozen xschem hierarchy still resolves
-(xschem netlists a missing symbol *silently*, which is the exact failure mode
-these catch); and that the documentation does not cite design-log sections or
-files that no longer exist.
 
 ```console
 $ pip install -r test/requirements.txt
 $ pytest test/
 ```
 
-No PDK, no ngspice, no magic, no network. The whole suite runs in well under a
-second, and runs on every push via `.github/workflows/test.yaml`.
+No PDK, no ngspice, no magic, no network; the whole suite runs in well under a
+second on every push. It covers three things:
+
+- **consistency** — `info.yaml`, `src/project.v` and the magic top cell still
+  agree on the module name, tile size and pin mapping;
+- **structure** — every symbol in the frozen xschem hierarchy still resolves and
+  the expected blocks are still instantiated. This one earns its place: xschem
+  resolves a missing symbol *silently* and emits a truncated netlist, which is
+  the netlist LVS then trusts;
+- **the measuring instruments** — the analysis scripts that produced the numbers
+  in the table above (`eyemetrics.py`, `jitter_parse.py`, `collect_pvt.py`) are
+  run against synthetic fixtures whose answer is known analytically, so an eye
+  metric or a PVT pass criterion cannot quietly change meaning.
+
+See [`test/README.md`](test/README.md).
 
 ## Running the simulations
 
@@ -161,6 +203,9 @@ watches `/proc/meminfo`. That is not a style preference — an unguarded ngspice
 has already OOM-crashed this machine once. See `CLAUDE.md` for the full rules
 and for the tool traps (xschem, ngspice and sky130 corner handling) that cost
 real time on this project.
+
+The figures in `docs/img/` are regenerated from data already on disk with
+`python3 docs/tools/make_figures.py`; no simulation is re-run to build them.
 
 ## What is Tiny Tapeout?
 
