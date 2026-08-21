@@ -166,11 +166,55 @@ mattered most.
 | `xschem/tuning/HANDOFF.md` | current state and open items |
 | `xschem/tuning/c25_summary.txt` | raw `meas` output of the four 3 µs end-to-end runs |
 | `docs/DESIGN.md` | verification methodology — start here to understand *how* it was checked |
+| `docs/SIMULATION_TRAPS.md` | the silent-failure traps in sky130 + ngspice that cost real time here |
 | `docs/img/` | the figures above |
 | `docs/tools/` | the pure-stdlib SVG generators that build them from the simulation data |
 | `src/project.v` | blackbox Verilog: the pad ↔ macro wiring that LVS checks |
+| `model/` | real-number behavioural model of the receiver + a self-checking testbench |
 | `mag/` | Magic layout: `make lvs` / `make drc` / `make update_gds`, plus `LAYOUT_HANDOFF.md` |
 | `test/` | repository-consistency and analysis-tool tests (pytest, no PDK or simulator needed) |
+
+## A behavioural model you can actually simulate
+
+The macro is custom analog, so the only synthesisable Verilog in the project is
+the blackbox wrapper in `src/project.v`. That is correct for tapeout and
+useless for system work — a SPICE deck cannot go into a link simulation, and a
+transient of this chain costs 7-20 minutes.
+
+[`model/rx_cdr_rnm.sv`](model/rx_cdr_rnm.sv) is the same receiver as a
+discrete-time real-number model: pad channel, CTLE zero/pole, Alexander phase
+detector, charge pump, loop filter and ring oscillator, stepped at 10 ps. It
+runs in seconds, and [`model/tb_rx_cdr.sv`](model/tb_rx_cdr.sv) closes the loop
+on PRBS7 and checks itself.
+
+Every constant is measured and cites its log section. The two exceptions — the
+loop-filter R and C — are labelled `FITTED, NOT MEASURED` in the source,
+because they are chosen to reproduce §C25-B's ripple rather than read off the
+schematic.
+
+| the model, on PRBS7 at 600.6 Mb/s | |
+|---|---|
+| recovered clock | 600.59 MHz against a 600.60 Mb/s data rate |
+| control voltage at lock | **0.7994 V**, against the ~0.80 V §C26 measured in SPICE |
+| bit errors, settled window | 0 over 900 bits |
+
+The control-voltage agreement is the interesting one: nothing in the model is
+fitted to it. It falls out of the measured 357 MHz/V oscillator slope and the
+§C25-E charge-pump currents, so the RNM and the SPICE netlist agreeing on where
+the loop parks is a genuine cross-check rather than a tuned result.
+`test/test_rnm_model.py` pins all three numbers in CI.
+
+**What it is not:** the ring is a phase accumulator with no phase noise, so the
+model *understates* jitter and is never the source of a jitter number — those
+come from SPICE. It has no noise, no mismatch and no PVT. The limits are listed
+at the top of the source file, and a test asserts they stay there.
+
+The model's own first version was a good illustration of why it needed a
+testbench: the phase detector was written combinationally, and since the data
+and edge samples update half a UI apart, it spent half of every UI comparing
+the new edge sample against the old data pair. The control voltage walked into
+the supply rail. It compiled, simulated and produced a waveform the whole time.
+An Alexander detector has to make one registered decision per UI.
 
 ## Tests
 
