@@ -1154,3 +1154,104 @@ actually execute this run. Use RISE ≤ ~1750, or better, derive the index from
 
 `jitter_parse.py` computes both statistics correctly; it is the reference and
 the window that are wrong, not the arithmetic.
+
+# §C27. Jitter, measured properly — and the sampling phase is the real risk
+
+`e2e_c27_jitter.spice` + `c27_analyze.py`. 6 µs, 324 663 points, 3601 rising
+edges, 1201 of them in the settled window (4.0-6.0 µs).
+
+This is the run §C26 asked for. All three of its defects are fixed: the window
+is genuinely settled, phase is referenced to the ideal 1665.00 ps bit grid
+rather than a best-fit clock, and the CTLE output is dumped alongside the clock
+so the eye consumed at the sampling instant can be measured directly.
+
+**A trap on the way in:** `e2e_prbs3u.inc` is 1850 bits = 3.08 µs, and a PWL
+source holds its final value forever. Running 6 µs against it would have gone
+flat DC at the halfway point, blinded the loop, and produced a confident jitter
+number that was really a measurement of the data source running out.
+Regenerated at 3700 bits (`e2e_prbs6u.inc`). Added to `docs/SIMULATION_TRAPS.md`.
+
+## Settling — proven inside the deck this time
+
+| window | vctrl |
+|---|---|
+| 3.9-4.0 µs | 0.79327 V |
+| 4.9-5.0 µs | 0.79968 V |
+| 5.8-5.9 µs | 0.79384 V |
+
+Non-monotonic and spanning 6.4 mV against 61.8 mV pp of residual ripple in the
+same window: this is dither, not drift. Contrast §C26, where the two windows
+moved monotonically and the "jitter" measured was partly convergence.
+
+Frequency over 1000 cycles inside the settled span: **600.666 MHz** against
+600.6006 Mb/s data, +0.011 %.
+
+## Cycle-to-cycle jitter — better than §C26 reported
+
+| | value | % UI |
+|---|---|---|
+| mean period | 1665.08 ps | +0.005 % error |
+| period RMS | **18.45 ps** | **1.11 %** |
+| period pk-pk | 111.50 ps | 6.70 % |
+
+§C26's 24.59 ps / 1.48 % was measured across a window that still contained
+settling. In a genuinely settled window it is 18.45 ps / 1.11 %. **Quote this
+number, not §C26's.**
+
+## Phase wander — real, and it is not a measurement artifact
+
+| | value | % UI |
+|---|---|---|
+| phase RMS vs the ideal grid | 199.08 ps | **11.96 %** |
+| phase pk-pk | 1286.25 ps | **77.25 %** |
+| linear ramp across the window | −26.60 ps | −1.60 % |
+| detrended RMS | 198.94 ps | 11.95 % |
+
+The detrend is the check that this is not §C26's mistake in a new form: if a
+residual frequency offset were inflating the number, removing the linear ramp
+would collapse it. It does not — 199.08 → 198.94 ps. The wander is genuine
+bang-bang dither.
+
+Mechanism, and it is consistent with what was already measured: 93.8 mV pp of
+`vctrl` ripple (§C25-B) on a 357 MHz/V oscillator is ±16 MHz of instantaneous
+frequency, ±2.7 % of 600 MHz. Phase accumulates fast at that swing.
+
+## The number that actually matters: the eye at the sampling instant
+
+|v(coutp)−v(coutm)| interpolated at each of the 1201 settled clock edges:
+
+| | value |
+|---|---|
+| mean | 181.46 mV |
+| 1st percentile | 23.91 mV |
+| minimum | **2.51 mV** |
+| samples below 25 mV | **13 of 1201 (1.1 %)** |
+| samples below 50 mV | 58 of 1201 (4.8 %) |
+
+**This is a worse answer than the project has been assuming, and it is the
+honest one.** A sample near 0 mV means the clock edge landed on a data
+transition rather than in the eye. About 1 % of samples land within 25 mV of
+the decision threshold, which is where noise and comparator offset decide the
+bit rather than the data.
+
+Put against the eye budget: the CTLE delivers 0.350 UI at the worst PVT corner
+(§C22), so ±0.175 UI of margin. Phase error is 0.120 UI RMS — the eye edge sits
+at only ~1.46σ. That is not a comfortable link.
+
+## What this does and does not say
+
+- It does **not** say the design fails. This is the nominal corner, the eye is
+  wide, and the loop tracks — frequency lock is exact to 0.011 % and there are
+  no cycle slips (`c27_analyze.py` checks for duplicate grid slots and found
+  none).
+- It **does** say the margin is thinner than "it locks" implies, and that the
+  residual `vctrl` ripple is not cosmetic: it converts directly into sampling
+  phase error at 357 MHz/V.
+- The obvious lever is loop-filter capacitance — more C means less ripple per
+  bang-bang update and less phase dither, at the cost of acquisition time.
+  §15 established that PLL-sized capacitors are too large to acquire at all, so
+  there is a real optimum in between and it has not been searched.
+- **Not done:** this is one corner and one pattern. The combined-loop PVT tier
+  (T2) is still generated-but-never-run, and phase error at the ss/125 °C/1.62 V
+  corner — where the eye is 0.350 UI rather than nominal — is unmeasured. That
+  is the run that would decide whether this design closes.

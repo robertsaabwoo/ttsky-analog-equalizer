@@ -71,7 +71,9 @@ Verified end to end (`xschem/tuning/e2e_ctle_cdr_tb.spice`) with data driven thr
 | CTLE eye, worst PVT corner (ss / 125 °C / 1.62 V) | 174 mV, 0.350 UI | §C22 |
 | combined channel + CTLE at Nyquist, 27 corners | −2.03 … +0.66 dB | §C18 |
 | recovered clock jitter, CDR alone on ideal data | 0.68 % UI RMS, 2.5 % UI pk-pk | §16b |
-| recovered clock jitter, full chain on PRBS7 (cycle-to-cycle) | 24.59 ps RMS = 1.48 % UI; 7.74 % UI pk-pk | §C26 |
+| recovered clock jitter, full chain on PRBS7 (cycle-to-cycle) | 18.45 ps RMS = 1.11 % UI; 6.70 % UI pk-pk | §C27 |
+| sampling-phase error vs the ideal bit grid | 199 ps RMS = 11.96 % UI; 77 % UI pk-pk | §C27 |
+| eye remaining at the sampling instant, nominal corner | mean 181 mV; 13 of 1201 samples within 25 mV of threshold | §C27 |
 | startup precharge over 45 PVT corners | 45/45 pass, release 136-167 ns | §20a |
 
 Those figures are for an alternating 0101 input, the easiest pattern for a bang-bang phase detector because
@@ -91,10 +93,15 @@ sensitivity limit — the actual limit has not been found. (§C25-D)
 
 - The ring oscillator cannot reach 600 MHz at 125 °C, or at a 1.62 V supply. The design is intended for room
   temperature and a nominal 1.8 V supply; this limit is characterised and accepted rather than fixed. (§20b)
-- **Sampling-phase jitter has not been measured.** Cycle-to-cycle jitter through the full chain is measured
-  and acceptable (1.48 % UI RMS), but how much of the 0.350 UI eye the loop's residual wander consumes at the
-  sampling instant — the number that actually decides whether the link works — has not been characterised.
-  §C26 explains why the phase figure that run produced is not usable and what a correct measurement needs.
+- **Sampling-phase margin is thin.** §C27 measured it: phase error against the ideal bit grid is 0.120 UI
+  RMS, against the ±0.175 UI of margin the 0.350 UI worst-corner eye allows — the eye edge is only about
+  1.46σ away. At the nominal corner, 13 of 1201 samples land within 25 mV of the decision threshold. The
+  loop frequency-locks exactly (0.011 %) with no cycle slips, so this is a margin question, not a
+  functional one, but it is the risk that decides the link. The mechanism is the residual control-voltage
+  ripple: 93.8 mV pp on a 357 MHz/V oscillator is ±16 MHz of instantaneous frequency.
+- **Phase error at the worst PVT corner has not been measured**, only at nominal. That run — ss / 125 °C /
+  1.62 V, where the eye is 0.350 UI rather than wide open — is the one that would decide whether this
+  design closes. (§C27)
 - **No PVT on the combined loop, and no layout**, so no extracted parasitics and no post-layout simulation.
 
 ## How to test

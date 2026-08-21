@@ -117,6 +117,21 @@ if skipped:
 print(f"  phase RMS   : {pstdev(ph)*1e12:9.2f} ps = {pstdev(ph)/UI*100:.2f} % UI")
 print(f"  phase pk-pk : {(max(ph)-min(ph))*1e12:9.2f} ps = {(max(ph)-min(ph))/UI*100:.2f} % UI")
 
+# A residual mean-period offset appears in the above as a linear ramp across the
+# window, which inflates it. Report the detrended figure too, and the size of the
+# ramp, so the two contributions can be told apart. The un-detrended number is
+# the upper bound; the detrended one is the dither the loop cannot remove.
+nn = len(ph)
+mx = (nn - 1) / 2.0
+sxx = sum((i - mx) ** 2 for i in range(nn))
+sxy = sum((i - mx) * ph[i] for i in range(nn))
+slope = sxy / sxx if sxx else 0.0
+det = [ph[i] - slope * (i - mx) for i in range(nn)]
+print(f"  linear ramp : {slope*nn*1e12:9.2f} ps across the window "
+      f"({slope*nn/UI*100:.2f} % UI) -- residual frequency offset")
+print(f"  detrended   : {pstdev(det)*1e12:9.2f} ps RMS = {pstdev(det)/UI*100:.2f} % UI, "
+      f"{(max(det)-min(det))*1e12:.2f} ps pk-pk = {(max(det)-min(det))/UI*100:.2f} % UI")
+
 # ---- 3. THE figure of merit: eye consumed at the sampling instant ----------
 # |differential| at the sampling instant. A sample near 0 V is a sample taken
 # at a data transition, i.e. the sampling phase has walked out of the eye.

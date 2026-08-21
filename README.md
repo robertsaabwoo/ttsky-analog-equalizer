@@ -15,7 +15,7 @@ data itself, which is why `clock_hz` is 0 and the harness `clk` pin is unused.
 - **[Verification methodology](docs/DESIGN.md)** — what was simulated, how, and what each number means.
 - **Design logs** — [`xschem/tuning/NOTES.md`](xschem/tuning/NOTES.md) (CDR, §1-§20)
   and [`xschem/tuning/ctle/NOTES_CTLE.md`](xschem/tuning/ctle/NOTES_CTLE.md)
-  (CTLE and end-to-end, §C1-§C26). Chronological, including the dead ends.
+  (CTLE and end-to-end, §C1-§C27). Chronological, including the dead ends.
 
 ## Measured results
 
@@ -42,9 +42,10 @@ the two things that were *not* measured say so.
 | Charge-pump up/down match | 1.263 µA up vs 1.284 µA down (1.6 %); both-on leakage 20.6 nA → 2.0 mV per 7-UI run | §C25-E |
 | Power-up polarity independence | precharge releases at 126.49 vs 126.56 ns; both polarities converge to 0.799-0.801 V | §C25-C |
 | Input sensitivity | 200 mVpp comfortable; **100 mVpp marginal** (path stays linear — 2.00× at the input, 1.92× at the output — but the loop wanders ±40 mV) | §C25-D |
-| Cycle-to-cycle jitter, full chain on PRBS7 | 24.59 ps RMS = **1.48 % UI**; 128.8 ps pk-pk = 7.74 % UI | §C26 |
+| Cycle-to-cycle jitter, full chain on PRBS7 | **18.45 ps RMS = 1.11 % UI**; 111.5 ps pk-pk = 6.70 % UI, in a proven-settled window | §C27 |
 | Cycle-to-cycle jitter, CDR alone on ideal data | 0.68 % UI RMS, 2.5 % UI pk-pk | §16b |
-| Sampling-phase error vs the data eye | **not measured.** §C26 produced a phase-wander figure against a best-fit clock in a window that still contained settling; it is documented there as not usable, and the correct measurement is specified but has not been run | §C26 |
+| Sampling-phase error vs the ideal bit grid | 199 ps RMS = **11.96 % UI**, 77 % UI pk-pk. Detrending changes it by 0.1 %, so it is dither, not a residual frequency offset | §C27 |
+| Eye remaining at the sampling instant (nominal corner) | mean 181 mV, but **13 of 1201 samples land within 25 mV of the decision threshold** — the clock edge occasionally lands on a data transition | §C27 |
 | Startup precharge across PVT | **45/45 corners pass** from a cold supply ramp with no `.ic`: seed 0.693-0.908 V, release 136-167 ns | §20a |
 | VCO tuning range (tt / 27 °C) | 514-621 MHz; 6 of 11 swept corners pass, the 5 failures are 125 °C and 1.62 V | §20b |
 | Combined-loop PVT | **not measured** — the T2 tier is generated and ready but was never run | `xschem/tuning/HANDOFF.md` §5 |
@@ -80,14 +81,31 @@ one closed by noise is not.
 
 ![Histogram of recovered-clock periods, 721 cycles, PRBS7](docs/img/clock-jitter.svg)
 
-Cycle-to-cycle jitter through the whole chain on real data is 1.48 % UI RMS —
-about 2× the CDR's 0.68 % on ideal full-rail data (§16b), which is a reasonable
-price for a channel that closes the eye at the pad. **The phase-wander number
-from the same run is deliberately not plotted**: §C26 measured it against a
-best-fit clock, in a window that still contained settling, on a loop type that
-has unbounded low-frequency wander by construction, and records it as not
-usable. The measurement that would settle the question is specified in §C26 and
-has not been run.
+Cycle-to-cycle jitter through the whole chain on real data is **1.11 % UI RMS**
+(§C27) — about 1.6× the CDR's 0.68 % on ideal full-rail data (§16b), a
+reasonable price for a channel that closes the eye at the pad. The histogram
+above is the earlier §C26 run, whose window still contained settling; §C27
+re-ran it to 6 µs, proved settling inside the deck with three separated
+averaging windows, and measures 18.45 ps rather than §C26's 24.59 ps.
+
+**The sampling-phase result is less comfortable, and it is the one worth
+reading.** §C27 also dumped the CTLE output alongside the clock, so the eye
+actually consumed at the sampling instant could be measured rather than
+inferred. Phase error against the ideal bit grid is 11.96 % UI RMS and 77 % UI
+peak-to-peak — and detrending it moves the number by 0.1 %, so this is genuine
+bang-bang dither, not the residual frequency offset that made §C26's figure
+unusable. The mechanism is already in the table: 93.8 mV pp of control-voltage
+ripple on a 357 MHz/V oscillator is ±16 MHz of instantaneous frequency.
+
+Against the eye budget that matters: the CTLE delivers 0.350 UI at the worst
+PVT corner, so ±0.175 UI of margin, and phase error is 0.120 UI RMS — the eye
+edge sits at about 1.46σ. At the nominal corner measured here, 13 of 1201
+samples land within 25 mV of the decision threshold. That does not say the
+design fails — frequency lock is exact to 0.011 % with no cycle slips — but it
+does say the margin is thinner than "it locks" implies, and that the residual
+ripple is not cosmetic. The run that would decide it is phase error at the
+ss / 125 °C / 1.62 V corner, where the eye is 0.350 UI rather than wide open.
+That run has not been done.
 
 ## What works, what is verified, what is not done
 
@@ -96,7 +114,7 @@ has not been run.
 | **Works** | The full chain is simulated end to end and locks: 200 mVpp differential in through a worst-case model of the TT analog pin path → CTLE → CDR → a recovered 600.64 MHz clock, on an alternating 0101 pattern and on PRBS7, at both data polarities. |
 | **Verified** | ngspice: AC across 27 PVT corners, PRBS7 eye diagrams at the corner extremes, 45-corner PVT on the startup cell from a cold supply ramp, an 11-corner VCO tuning-range sweep, and four 3 µs full-chain transients (pattern, polarity, amplitude). Netlist-level: the promoted schematics were compared subcircuit-by-subcircuit against the validated sandbox — all 17 leaf subcircuits matched exactly. |
 | **Scope line: layout** | The schematic design is **frozen and netlist-verified**, and the physical flow is wired up and proven to run before any polygon is drawn: `make lvs` in `mag/` reads `src/project.v` and the xschem netlist and today correctly reports 0 devices on the layout side against 224 on the source side. The device inventory is measured per block (1162 µm² drawn against 75 603 µm² available, so area is not the constraint), the floorplan guidance is written up in `mag/LAYOUT_HANDOFF.md` and `mag/MAGIC_GUIDE.md`, and one leaf cell (`mag/d_latch.mag`) is drawn as a pathfinder. **The macro itself has not been drawn.** |
-| **Also not done** | PVT on the *combined* loop (tier T2 is generated, never run), and a trustworthy sampling-phase jitter measurement. Both are listed in the results table as not measured. |
+| **Also not done** | PVT on the *combined* loop (tier T2 is generated, never run). Sampling-phase jitter is now measured at the nominal corner (§C27) and the answer is not comfortable — 0.120 UI RMS against ±0.175 UI of worst-corner margin — so the corner run is the open question that decides the design. |
 | **Known limitation** | The ring oscillator cannot reach 600 MHz at 125 °C or at a 1.62 V supply. It is characterised (above ~0.85 V the ring is RC-limited by its load resistor, not current-starved, so more control voltage buys nothing), understood, and **accepted** rather than fixed — §20b. |
 
 Because there is no GDS yet, the Tiny Tapeout `gds` workflow is gated on the
@@ -162,7 +180,7 @@ mattered most.
 | `xschem/attic/` | retired testbenches and exploration schematics, kept because the logs cite them |
 | `xschem/tuning/` | the simulation sandbox: testbenches, decks and the PVT harness |
 | `xschem/tuning/NOTES.md` | the CDR design log, §1-§20 |
-| `xschem/tuning/ctle/NOTES_CTLE.md` | the CTLE and end-to-end design log, §C1-§C26 |
+| `xschem/tuning/ctle/NOTES_CTLE.md` | the CTLE and end-to-end design log, §C1-§C27 |
 | `xschem/tuning/HANDOFF.md` | current state and open items |
 | `xschem/tuning/c25_summary.txt` | raw `meas` output of the four 3 µs end-to-end runs |
 | `docs/DESIGN.md` | verification methodology — start here to understand *how* it was checked |
