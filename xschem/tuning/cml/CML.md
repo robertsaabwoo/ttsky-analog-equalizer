@@ -435,6 +435,25 @@ power unchanged.
 precharge seed and the bigger C1 slow the integral path to the frozen loop's
 *effective* rate, but that is an argument, not a run), CID (§16e), PVT.
 
+**CS (2026-10-11): cold start with the scaled filter, 6 µs from power-up.**
+`../vw/decks/CS_scaled.spice` (C4's deck with the scaled filter; ~45 min).
+The precharge seeds `vctrl` at ~0.80 V; 100 ns averages read 0.782 V from
+0.25 µs on and stay within 0.779–0.785 V to 6 µs (C4 with the old filter
+needed ~5 µs). The seed sits close to this ring's 0.78 V lock point, so this
+is lock from the nominal seed, not pull-in from far away.
+
+| 4–6 µs, PRBS7 | frozen (§C27) | CML, old filter (C4, from 5 µs) | CML, scaled filter |
+|---|---|---|---|
+| period RMS | 18.45 ps = 1.11 % UI | 46.16 ps = 2.77 % UI | **28.04 ps = 1.68 % UI** |
+| cycle-to-cycle RMS (`edge_steps.py`) | 12.63 ps | 24.86 ps | **19.64 ps** |
+| sampling-phase RMS | 11.96 % UI | 13.91 % UI | **5.93 % UI** |
+| samples < 25 mV from threshold | 13 / 1201 | 11 / 601 | **0 / 1201** |
+| `vctrl` pp, 5.8–5.9 µs | 61.8 mV | 115.6 mV | **62.1 mV** |
+| `vctrl` mean, 5.8–5.9 µs | 0.794 V | 0.788 V | 0.779 V |
+
+From 3 µs (1802 edges): 27.49 ps period RMS, 5.49 % UI sampling phase,
+0 / 1802 samples < 25 mV.
+
 **A trap found along the way:** in C3's 0.6–1.0 µs window the loop is still
 acquiring (`vctrl` moved 0.8115 → 0.7858 V within the window in the
 `c2c_Wt=3` run). Ripple from that window mixes acquisition with dither, so
@@ -443,9 +462,8 @@ C3-vs-P0 ripple comparisons are suggestive at best. Only settled 6 µs runs
 
 ## Open items, in priority order
 
-1. **Verify the scaled filter beyond lock.** Done: S1 at lock (above). Next:
-   cold-start acquisition with the precharge (a few µs from power-up), then
-   CID runs (§16e), then the frozen design's glitch-dependent loop gain at
+1. **Verify the scaled filter beyond lock.** Done: S1 at lock and CS cold
+   start at tt (above). Next: CID runs (§16e), then the frozen design's glitch-dependent loop gain at
    PVT corners (U3 at corners, ~2 min each), which bears on the taped-out
    candidate as well.
 2. **`vtail` = 0.85 V is an ideal source here.** On chip it needs a bias. The
