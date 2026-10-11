@@ -224,14 +224,13 @@ C3-vs-P0 ripple comparisons are suggestive at best. Only settled 6 µs runs
 
 ## Open items, in priority order
 
-1. **Find the jitter mechanism.** Not yet tested:
-   - the clock-path delay through the weakened `diff_amp_inv`, which is inside
-     the loop: try `vtail` 0.8 against 0.9 at settled lock;
-   - the PD's effective gain near the decision point. A 0.4 V-swing edge
-     latch resolves less sharply than the frozen 1.2 V one; a larger
-     `lat_Wt`/swing on the edge sampler (`x1`, `x3`) alone would test this;
-   - a frozen-design 6 µs run with `up`/`down` duty recorded, to compare
-     duty at settled lock rather than during acquisition.
+1. **Find why the CML PD makes `vctrl` wander ~2x more** (the clock path is
+   ruled out by J1, VCO gain by K1). Next test: a settled closed loop for
+   both designs saving `up`, `down` and the C1 node, to compare the overlap of
+   `up`/`down` and how much of the wander is R's kick vs C1. Other candidates:
+   - loop latency through the weakened buffer (`vtail` 0.8 vs 0.9);
+   - the edge latch's resolving gain at 0.4 V swing (bigger `lat_Wt` on
+     `x1`/`x3` only).
 2. **`vtail` = 0.85 V is an ideal source here.** On chip it needs a bias. The
    likely route is resizing the buffer tail so the existing 0.9 V `vbias` pad
    gives the same ~212 µA.
