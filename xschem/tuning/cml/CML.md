@@ -317,6 +317,32 @@ were wrong** -- do not use it for loop-dynamics trade-offs. What drives both
 paths is the net charge per decision, so the next levers attack that: C2 (U2)
 and a PD output stage that switches the pump like the frozen one does.
 
+**U2 (2026-10-11): what each decision does to the real loop filter.**
+`../vw/gen_u2.py`, ~5 min: ideal clock at −0.03 UI → PD → real charge pump →
+the real `tiny_pll_loop_filter` (no ideal source), with 1, 2 or 4 copies of
+`cap2`; 25 UI from 0.79 V, 11 transitions analysed.
+
+| config | fast spike step, pp | across R, pp | C1 step per decision |
+|---|---|---|---|
+| CML, C2 ×1 | 44.1 mV | 123.2 mV | −23.33 mV |
+| CML, C2 ×2 | 22.6 mV | 88.1 mV | −20.42 mV |
+| CML, C2 ×4 | 11.1 mV | 57.3 mV | −16.16 mV |
+| frozen PD, C2 ×1 | **84.7 mV** | 107.9 mV | **−8.32 mV** |
+
+- **The switching spikes are not the cause:** the frozen PD's spike steps on
+  `vctrl` are twice the CML ones, and the frozen design has the lower jitter.
+- **The integral step is the cause:** a CML decision moves C1 **2.8x** as far
+  as a frozen one. That matches the period-jitter ratio (46/18.45 = 2.5x) and
+  explains S1: the excess charge lands on C1, which R does not touch.
+- C2 ×4 (+~7 µm²) trims the C1 step by ~30 % but leaves the 2.8x at its
+  source, and changes loop dynamics like R did.
+
+**Next lever: the PD output stage.** Reduce the net charge per decision where
+it is made: convert Q5, Q2 and B to CMOS and use the frozen `robs_xor` (the
+"3 converters + `robs_xor`" variant first costed in the original CML session,
+~85 µA cheaper than CML XORs + 2 converters), so the pump is switched by
+full-rail static-CMOS edges, as in the frozen design. Check with U1/U2 first.
+
 **A trap found along the way:** in C3's 0.6–1.0 µs window the loop is still
 acquiring (`vctrl` moved 0.8115 → 0.7858 V within the window in the
 `c2c_Wt=3` run). Ripple from that window mixes acquisition with dither, so
