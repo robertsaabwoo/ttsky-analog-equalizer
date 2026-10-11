@@ -117,7 +117,8 @@ def dump_lines(dump, tp, tn):
     """J1: ASCII dump of the clock at three points in the chain, for j1_analyze.py."""
     if not dump:
         return ""
-    return f"""  let ring = v({tp})-v({tn})
+    return f"""
+  let ring = v({tp})-v({tn})
   let buf = v(ck)-v(ckb)
   let rclk = v(rclkp)-0.9
   set filetype=ascii

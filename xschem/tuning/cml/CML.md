@@ -8,13 +8,14 @@ recovered clock for the output pins)?
 
 **Answer, tt / 27 °C / 1.8 V, closed loop on PRBS7:** the loop locks (601.10
 MHz, same stimulus as `../power/` P0) and the macro goes from **4.86 mA / 8.74 mW
-to 1.86 mA / 3.34 mW (−62 %)**. **But jitter is worse:** cycle-to-cycle
-2.77 % UI RMS against 1.11 % for the frozen design (§C27), sampling-phase error
-13.9 % against 12.0 % UI RMS, and 1.8 % against 1.1 % of samples within 25 mV
-of the decision threshold (C4, below). The cause is not found. Two hypotheses
-were tested and ruled out (see Jitter). As it stands this trades about 2.5× the
-cycle-to-cycle jitter for a 62 % power cut, on the margin that is already the
-design's open risk.
+to 1.86 mA / 3.34 mW (−62 %)**. **But jitter is worse:**
+period jitter 2.77 % UI RMS against 1.11 % for the frozen design (§C27; both
+figures are the RMS of the period, which `c27_analyze.py` labels
+"cycle-to-cycle" -- see the J1 section), sampling-phase error 13.9 % against
+12.0 % UI RMS, and 1.8 % against 1.1 % of samples within 25 mV of the decision
+threshold (C4, below). **Cause located (2026-10-11): all of it is slow `vctrl`
+wander**, which is ~2x the frozen design's; the clock path adds almost nothing
+(J1). Why the CML PD makes the loop wander more is the open question.
 
 Sandbox only: the frozen schematics are untouched. Measured 2026-10-05/06.
 
@@ -134,8 +135,9 @@ cycle slips. The table therefore uses the window from 5 µs (601 edges):
 | | frozen (§C27, from 4 µs) | CML (C4, from 5 µs) |
 |---|---|---|
 | mean period | — (601.05 MHz in P0) | 1664.87 ps (−0.008 % UI) |
-| cycle-to-cycle RMS | 18.45 ps = 1.11 % UI | **46.16 ps = 2.77 % UI** |
-| cycle-to-cycle pk-pk | 111.5 ps = 6.70 % UI | 292.8 ps = 17.58 % UI |
+| period RMS (`c27_analyze.py`'s "cycle-to-cycle") | 18.45 ps = 1.11 % UI | **46.16 ps = 2.77 % UI** |
+| true cycle-to-cycle RMS, adjacent periods (`edge_steps.py`) | 12.63 ps = 0.76 % UI | 24.86 ps = 1.49 % UI |
+| period pk-pk | 111.5 ps = 6.70 % UI | 292.8 ps = 17.58 % UI |
 | sampling-phase error RMS | 199 ps = 11.96 % UI | 231.6 ps = 13.91 % UI |
 | sampling-phase error pk-pk | 77 % UI | 76.8 % UI |
 | eye at the sampling instant, mean | 181 mV | 162.3 mV |
@@ -180,11 +182,39 @@ pp, same 5.8–5.9 µs window, same loop filter and charge pump); it moves on a
 20–90 ns time scale (autocorrelation crosses zero at ~20 ns) and plausibly
 explains the worse sampling-phase error, which is a separate problem.
 
-**Next, decks ready but not yet run:** `J1_clkjit_dai` / `J1_quiet_dai` (open
-loop, ideal `vctrl` 0.79 V, 400 ns, PRBS vs constant data). With no noise
-source in the transient, any cycle-to-cycle jitter is data coupled into the
-clock; `j1_analyze.py` reports it at the ring tap, the buffer output and
-`rclk_p`, which locates where it enters.
+**J1 (2026-10-11): the clock path is clean -- the jitter is `vctrl`.** Open
+loop, ideal `vctrl` 0.79 V, 400 ns at a 5 ps step, CML PD fed PRBS7
+(`J1_clkjit_dai`) or constant data (`J1_quiet_dai`); `j1_analyze.py`, rising
+edges from 60 ns:
+
+| point | PRBS data, c2c RMS | constant data |
+|---|---|---|
+| ring tap (`t7`−`t8`) | 0.00 ps | 0.00 ps |
+| buffer out (`ck`−`ckb`) | 0.53 ps | 0.00 ps |
+| `rclk_p` (`cml2cmos`) | 0.90 ps | 0.00 ps |
+
+Data-dependent kickback from the CML latches onto the weak clock line is real
+but ~1 ps: it is not the 46 ps.
+
+**Then where?** `c27_analyze.py` labels `pstdev(period)` as "cycle-to-cycle".
+It is period jitter, which is exactly what slow `vctrl` wander produces. Each
+C4 period predicted from `vctrl` (averaged over that period, through the K1
+curve) against the measured period: **correlation 0.972**, predicted RMS 37.0 ps
+against 46.2 ps measured (the K1 curve is open-loop and loaded slightly
+differently). Edge-time interpolation is not an artifact: the step straddling
+every `rclk_p` crossing is <= 20 ps in both C4 and C27 (`edge_steps.py`), and
+restricting to the finest steps does not change the result. The C27 1.11 % UI
+figure quoted elsewhere as "cycle-to-cycle" is the same period-RMS metric.
+
+So the CML design has **one** problem, not two: the loop's `vctrl` wanders
+~2x more (44.5 mV RMS, 283 mV pp over 5–6 µs; 116 vs 62 mV pp in the
+5.8–5.9 µs window). The charge pump and loop filter are identical, so the
+difference is in what the PD tells the pump. The leading candidate: with R
+~80 kΩ and 1.26 µA, a pump pulse puts ~100 mV across R at once. The frozen
+PD's `up` and `down` overlap (duty sum 0.94 at a transition density of ~0.5),
+and overlapping pulses cancel in the pump; the CML PD's are cleanly exclusive
+(C1), so every decision lands as a full kick. Testing this needs `up`, `down`
+and the C1 node saved in a settled closed loop, for both designs.
 
 **A trap found along the way:** in C3's 0.6–1.0 µs window the loop is still
 acquiring (`vctrl` moved 0.8115 → 0.7858 V within the window in the
@@ -234,7 +264,7 @@ VTAIL=0.8 ./run_cml.sh C3_chain_dai
 | C2_ring_dai | clock side, one `diff_amp_inv`, `vtail` sweep (7 points) | ~6 min |
 | C3_chain_dai | whole macro, closed loop, metered per cell | ~3.5–10 min |
 | K1_kvco_dai | ring + one buffer at `vtail`, fine `vctrl` sweep, 10 points | ~17 min |
-| J1_clkjit_dai, J1_quiet_dai | open-loop clock dump, PRBS / constant data; `./j1_analyze.py results/J1_prbs.raw` | a few min each (not yet run) |
+| J1_clkjit_dai, J1_quiet_dai | open-loop clock dump, PRBS / constant data; `./j1_analyze.py results/J1_prbs.raw` | ~4-5 min each |
 | C4_jitter_dai | C3 for 6 µs, writes `C4_chain.raw`; then `python3 ../../c27_analyze.py C4_chain.raw 1.665 5000` in `results/` | **~28 min** |
 
 | file | what it does |
