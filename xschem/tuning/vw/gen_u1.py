@@ -38,7 +38,7 @@ def deck(design):
     tstop = NBITS * UI
     lines, saves = [], []
     for k, ph in enumerate(PHASES):
-        if design == "cml":
+        if design in ("cml", "cmlg"):
             lo, hi, tr = 1.03, 1.43, 200e-12
         else:
             lo, hi, tr = 0.0, 1.8, 80e-12
@@ -50,6 +50,14 @@ def deck(design):
         if design == "cml":
             lines.append(f"Vckb{k} ckb{k} 0 PULSE({hi} {lo} {td:.4e} {tr} {tr} {pw:.4e} {UI})")
             lines.append(f"xpd{k} vdd 0 dn{k} up{k} ck{k} ckb{k} dp dm vbias cml_pd")
+        elif design == "cmlg":
+            # gated: up/down AND (ckb high, as CMOS) -> the charge pump is on
+            # for the half UI after the falling ck edge only
+            lines.append(f"Vckb{k} ckb{k} 0 PULSE({hi} {lo} {td:.4e} {tr} {tr} {pw:.4e} {UI})")
+            lines.append(f"xpd{k} vdd 0 dnr{k} upr{k} ck{k} ckb{k} dp dm vbias cml_pd")
+            lines.append(f"xgc{k} gk{k} ckb{k} ck{k} vdd 0 vbias cml2cmos")
+            lines.append(f"xgu{k} upr{k} gk{k} 0 0 vdd vdd up{k} sky130_fd_sc_hd__and2_1")
+            lines.append(f"xgd{k} dnr{k} gk{k} 0 0 vdd vdd dn{k} sky130_fd_sc_hd__and2_1")
         else:
             lines.append(f"xinv{k} vdd 0 ck{k} ckb{k} single_inverter")
             lines.append(f"xpd{k} vdd 0 dn{k} up{k} ck{k} dp ckb{k} dm vbias alexander_phase_detector")
@@ -63,6 +71,7 @@ def deck(design):
 * U1 ({design}): PD loop delay, open loop, offsets {' '.join(f'{p:+.2f}' for p in PHASES)} UI
 * bits {''.join(map(str, bits))}
 .lib {gp.PDK}/sky130A/libs.tech/ngspice/sky130.lib.spice tt
+.include {gp.PDK}/sky130A/libs.ref/sky130_fd_sc_hd/spice/sky130_fd_sc_hd.spice
 .include {NETDIR}/frozen.inc
 .include {NETDIR}/cml_cells.inc
 .options method=gear reltol=0.001
@@ -85,10 +94,10 @@ Em dm 0 vol='1.3 - v(vd)'
 
 def main():
     os.makedirs(os.path.join(HERE, "decks"), exist_ok=True)
-    for d in ("frozen", "cml"):
+    for d in ("frozen", "cml", "cmlg"):
         with open(os.path.join(HERE, "decks", f"U1_{d}.spice"), "w") as fh:
             fh.write(deck(d))
-    print("wrote decks/U1_frozen.spice decks/U1_cml.spice")
+    print("wrote decks/U1_frozen.spice decks/U1_cml.spice decks/U1_cmlg.spice")
 
 
 if __name__ == "__main__":

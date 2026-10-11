@@ -221,6 +221,68 @@ V1 (`../vw/`) saves `up`, `down` and the C1 node in a settled 6 µs closed loop
 for both designs, to split the wander between R's instantaneous kick and C1's
 integrated drift, and to measure overlap and pulse widths directly.
 
+## The cause, found with unit tests (2026-10-11, `../vw/`)
+
+The 6 µs closed loop costs 40+ minutes per question, so the wander was broken
+into short tests instead.
+
+**V1** (`../vw/V1_cml.spice`, C4 plus `up`, `down` and the C1 node dumped):
+the CML loop's `vctrl` wander splits into 33.5 mV RMS on C1 and 29.4 mV RMS
+across R. `up` and `down` are high 0.255 / 0.285 of the time and essentially
+never together (0.5 %), so overlap is not the issue. The same waveforms give
+the filter values the models below use: **R ≈ 26.5 kΩ** (33 mV across it at
+1.26 µA) and **R·C1 = 9.5 ns → C1 ≈ 360 fF**. Both differ from the earlier
+estimates from device sizes (~80 kΩ, ~121 fF).
+
+**`bbloop.py`** (stdlib bang-bang loop model, ~14 s per sweep). Loop delay was
+the first suspect: ~2 UI of extra delay reproduces the CML signatures. **U1
+refuted it** (below). What the model is sensitive to is the **net charge each
+decision delivers**:
+
+| charge per decision (Icp·UI) | 0.35 | 0.7 | 1.0 | 1.5 | 2.0 | 2.8 |
+|---|---|---|---|---|---|---|
+| model period RMS (ps) | 12.0 | 21.6 | 29.5 | 34.9 | 40.7 | 44.5 |
+
+**U1** (`../vw/gen_u1.py`, ~6 min per design): ideal clock at fixed offsets
+(−0.1, −0.03, +0.03, +0.1 UI) → PD → the real charge pump into an ideal
+0.79 V source, PRBS7 at CTLE levels. Integrated per data transition:
+
+| PD | `up` decision | `down` decision | pump on-time | peak current |
+|---|---|---|---|---|
+| frozen | **+0.52** | **−1.10** | 1.03 UI | 60–66 µA |
+| CML | **+1.41** | **−1.56** | 1.09 UI | 44–80 µA |
+| CML gated with CMOS `ckb` (`cmlg`) | +1.30 | −1.48 | 0.64 UI | 52–66 µA |
+
+- Both PDs flip sign between +0.03 and +0.1 UI (the bench's edge convention),
+  and their clock-edge-to-pump delay differs by only ~30–75 ps. **Loop delay is
+  ruled out.**
+- The steady pump current is ~1.4 µA for ~1 UI in both. The difference is in
+  the **switching transients**: tens of µA for a few ps at each pulse edge,
+  ~1 fC each, against 2.1 fC for a clean Icp·UI. The frozen PD's fast
+  full-rail `up` edges inject charge that cancels about half of each `up`
+  pulse; the CML PD's slow 18 µA converters inject charge that adds. Averaged,
+  ~0.8 Icp·UI per frozen decision against ~1.5 per CML decision, which by
+  the table above is most of the 18 → 46 ps difference. **The frozen design's
+  lower jitter is partly an accident of charge-injection cancellation.**
+- **Negative result, gating:** ANDing `up`/`down` with a CMOS `ckb` cut the
+  on-time to 0.64 UI but the charge only to 1.30 / 1.48, because the sharper
+  gate edges inject more. Pulse shaping in front of this charge pump is not a
+  good lever.
+
+**Fix direction: the loop filter** (the charge pump's layout is locked; the
+filter has been resized in this project before, §16). Model, CML charge 1.4
+per decision, delay 0.15 UI:
+
+| R | C1 | period RMS (model) |
+|---|---|---|
+| 26.5 kΩ (today) | 360 fF | 32.5 ps |
+| 18 kΩ | 360 fF | 24.1 ps (≈ frozen under the same model, 24.2) |
+| 13 kΩ | 360 fF | 20.2 ps |
+| 13 kΩ | 720 fF | 17.1 ps |
+
+Not yet checked in SPICE, and a lower R changes acquisition and the CID
+margin (§16e), which the model does not cover.
+
 **A trap found along the way:** in C3's 0.6–1.0 µs window the loop is still
 acquiring (`vctrl` moved 0.8115 → 0.7858 V within the window in the
 `c2c_Wt=3` run). Ripple from that window mixes acquisition with dither, so
@@ -229,13 +291,10 @@ C3-vs-P0 ripple comparisons are suggestive at best. Only settled 6 µs runs
 
 ## Open items, in priority order
 
-1. **Find why the CML PD makes `vctrl` wander ~2x more** (the clock path is
-   ruled out by J1, VCO gain by K1). Next test: a settled closed loop for
-   both designs saving `up`, `down` and the C1 node, to compare the overlap of
-   `up`/`down` and how much of the wander is R's kick vs C1. Other candidates:
-   - loop latency through the weakened buffer (`vtail` 0.8 vs 0.9);
-   - the edge latch's resolving gain at 0.4 V swing (bigger `lat_Wt` on
-     `x1`/`x3` only).
+1. **Verify the loop-filter fix in SPICE.** Cause found (see "The cause,
+   found with unit tests"): ~2x net charge per decision from charge-pump
+   switching transients. Next: CML closed loop with R ≈ 13–18 kΩ, started near
+   lock to skip acquisition, then acquisition and CID with the chosen R.
 2. **`vtail` = 0.85 V is an ideal source here.** On chip it needs a bias. The
    likely route is resizing the buffer tail so the existing 0.9 V `vbias` pad
    gives the same ~212 µA.

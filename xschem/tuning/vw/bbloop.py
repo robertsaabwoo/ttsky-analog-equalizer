@@ -16,7 +16,7 @@ Model, per sub-step of UI/NSUB:
   * PD: at each data transition, a late clock (phi > 0) gives up (+1), which
     speeds the VCO so the clock moves earlier; an early clock gives down
     (matches CML.md C1: early clock gives down).
-  * the decision becomes a 1-UI charge-pump pulse (+-Icp) that starts DELAY UI
+  * the decision becomes a WIDTH-UI charge-pump pulse (+-Icp) that starts DELAY UI
     after the transition was sampled. Back-to-back same-sign pulses merge, as
     in the SPICE waveforms.
   * filter: Icp into the vctrl node (C2); R from vctrl to C1.
@@ -42,7 +42,7 @@ def prbs7(n, seed=0x7F):
     return out
 
 
-def run(delay, kvco, icp, r, c1, c2, nui=20000, nsub=32, settle=6000):
+def run(delay, kvco, icp, r, c1, c2, nui=20000, nsub=32, settle=6000, width=1.0):
     dt = UI / nsub
     bits = prbs7(nui + 1)
     vc1 = vctrl = 0.0            # deviations from the lock point
@@ -63,7 +63,7 @@ def run(delay, kvco, icp, r, c1, c2, nui=20000, nsub=32, settle=6000):
             k = n * nsub + s
             while pending and pending[0][0] <= k:
                 _, sg = pending.pop(0)
-                drive_until, drive_sign = k + nsub, sg
+                drive_until, drive_sign = k + int(round(width * nsub)), sg
             i = icp * drive_sign if k < drive_until else 0.0
             ir = (vctrl - vc1) / r
             vctrl += (i - ir) * dt / c2
@@ -94,12 +94,13 @@ def main():
     ap.add_argument("--r", type=float, default=80, help="kohm")
     ap.add_argument("--c1", type=float, default=121, help="fF")
     ap.add_argument("--c2", type=float, default=19, help="fF")
+    ap.add_argument("--width", type=float, default=1.0, help="charge-pump pulse per decision, UI")
     a = ap.parse_args()
     kv = a.kvco * 1e6 / 1e-3
-    print(f"Kvco {a.kvco} MHz/mV  Icp {a.icp} uA  R {a.r} k  C1 {a.c1} fF  C2 {a.c2} fF")
+    print(f"pulse {a.width} UI  Kvco {a.kvco} MHz/mV  Icp {a.icp} uA  R {a.r} k  C1 {a.c1} fF  C2 {a.c2} fF")
     print("delay(UI)  vctrl RMS  vctrl pp   C1 RMS  period RMS  phase RMS  same-sign runs mean/max")
     for d in a.delay:
-        m = run(d, kv, a.icp * 1e-6, a.r * 1e3, a.c1 * 1e-15, a.c2 * 1e-15)
+        m = run(d, kv, a.icp * 1e-6, a.r * 1e3, a.c1 * 1e-15, a.c2 * 1e-15, width=a.width)
         print(f"{d:8.2f}  {m['vctrl_rms']:7.1f} mV {m['vctrl_pp']:7.1f} mV {m['c1_rms']:6.1f} mV "
               f"{m['per_rms']:7.1f} ps  {m['phi_rms']:6.2f} %UI   {m['run_mean']:5.2f} / {m['run_max']}")
 
