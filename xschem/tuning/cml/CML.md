@@ -229,10 +229,15 @@ into short tests instead.
 **V1** (`../vw/V1_cml.spice`, C4 plus `up`, `down` and the C1 node dumped):
 the CML loop's `vctrl` wander splits into 33.5 mV RMS on C1 and 29.4 mV RMS
 across R. `up` and `down` are high 0.255 / 0.285 of the time and essentially
-never together (0.5 %), so overlap is not the issue. The same waveforms give
-the filter values the models below use: **R ≈ 26.5 kΩ** (33 mV across it at
-1.26 µA) and **R·C1 = 9.5 ns → C1 ≈ 360 fF**. Both differ from the earlier
-estimates from device sizes (~80 kΩ, ~121 fF).
+never together (0.5 %), so overlap is not the issue. R·C1 from the same
+waveforms is 9.5 ns.
+
+**R0** (`../vw/decks/R0_filter.spice`, seconds; DC for R, AC at 0.8 V for the
+MOS caps): **R = 86.3 kΩ, C1 = 109 fF, C2 = 16 fF** (R·C1 = 9.4 ns, agreeing).
+*Correction:* an earlier version of this note took R ≈ 26.5 kΩ and C1 ≈ 360 fF
+from the ~33 mV across R during 1 ns pulses. That underestimates R because C2
+has not finished charging within a pulse. The tables below that used 26.5 kΩ /
+360 fF are kept as they were run, but read them for trend only.
 
 **`bbloop.py`** (stdlib bang-bang loop model, ~14 s per sweep). Loop delay was
 the first suspect: ~2 UI of extra delay reproduces the CML signatures. **U1
@@ -270,8 +275,8 @@ decision delivers**:
   good lever.
 
 **Fix direction: the loop filter** (the charge pump's layout is locked; the
-filter has been resized in this project before, §16). Model, CML charge 1.4
-per decision, delay 0.15 UI:
+filter has been resized in this project before, §16). Model with the *wrong*
+26.5 kΩ / 360 fF values, CML charge 1.4 per decision, delay 0.15 UI:
 
 | R | C1 | period RMS (model) |
 |---|---|---|
@@ -280,8 +285,14 @@ per decision, delay 0.15 UI:
 | 13 kΩ | 360 fF | 20.2 ps |
 | 13 kΩ | 720 fF | 17.1 ps |
 
-Not yet checked in SPICE, and a lower R changes acquisition and the CID
-margin (§16e), which the model does not cover.
+With the measured R0 values the model's absolute numbers are ~3x too high
+(64 ps for a frozen-like 0.8 Icp·UI against 18.45 ps measured), so it is a
+trend tool only. Trend, charge 1.45 per decision: R 86 kΩ 95 ps; 60 kΩ 77 ps;
+43 kΩ 61 ps; 43 kΩ with C1 doubled 55 ps; 30 kΩ with C1 doubled 41 ps. It
+also cannot represent what U1 shows: each switching spike lands ~1 fC
+directly on C2 (16 fF), a ~60 mV instantaneous step on `vctrl`. SPICE has to
+decide (S1, below). A lower R also changes acquisition and the CID margin
+(§16e), which the model does not cover.
 
 **A trap found along the way:** in C3's 0.6–1.0 µs window the loop is still
 acquiring (`vctrl` moved 0.8115 → 0.7858 V within the window in the
@@ -293,8 +304,9 @@ C3-vs-P0 ripple comparisons are suggestive at best. Only settled 6 µs runs
 
 1. **Verify the loop-filter fix in SPICE.** Cause found (see "The cause,
    found with unit tests"): ~2x net charge per decision from charge-pump
-   switching transients. Next: CML closed loop with R ≈ 13–18 kΩ, started near
-   lock to skip acquisition, then acquisition and CID with the chosen R.
+   switching transients. Next: S1, CML closed loop for 1.5 µs started near
+   lock, today's R against R halved (43 kΩ, L 15 → 7.5); then acquisition and
+   CID with the chosen R.
 2. **`vtail` = 0.85 V is an ideal source here.** On chip it needs a bias. The
    likely route is resizing the buffer tail so the existing 0.9 V `vbias` pad
    gives the same ~212 µA.
