@@ -113,14 +113,30 @@ C2_VCTRL = [0.75, 0.791, 0.83, 0.87, 0.95]
 C2_VTAIL = [0.75, 0.8, 0.85, 0.9, 0.95, 1.1, 1.3]
 
 
-def deck_ring(variant):
+def dump_lines(dump, tp, tn):
+    """J1: ASCII dump of the clock at three points in the chain, for j1_analyze.py."""
+    if not dump:
+        return ""
+    return f"""  let ring = v({tp})-v({tn})
+  let buf = v(ck)-v(ckb)
+  let rclk = v(rclkp)-0.9
+  set filetype=ascii
+  write {dump} ring buf rclk
+"""
+
+
+# K1: fine vctrl sweep at the chosen vtail, for the VCO gain at the lock point
+K1_VCTRL = [0.770, 0.775, 0.780, 0.785, 0.790, 0.795, 0.800, 0.805, 0.810, 0.820]
+
+
+def deck_ring(variant, sweep_v=None, sweep_t=None, nbits=70, dump=None):
     """Clock side only, open loop, vctrl from an ideal source. Per point: ring
     frequency, clock swing at the PD, recovered-clock duty, per-block current."""
-    sweep_v, sweep_t = (C2_VCTRL, [1.8]) if variant == "none" else ([0.791], C2_VTAIL)
+    if sweep_v is None:
+        sweep_v, sweep_t = (C2_VCTRL, [1.8]) if variant == "none" else ([0.791], C2_VTAIL)
     tp, tn = ring_taps(variant).split()
     clk = clock_lines(variant)
     clk = [l.replace(" Vdd Vss ", " vdd_buf 0 ", 1) for l in clk]
-    nbits = 70
     bits = prbs7(nbits)
     t0, t1 = 60e-9, nbits * UI
     blocks = ["ring", "buf", "pd", "clk", "out"]
@@ -179,7 +195,7 @@ Cn clkout_n 0 50f
 .control
   set width=250
   save v({tp}) v({tn}) v(ck) v(ckb) v(rclkp) v(clkout_p) {' '.join(f'i(V{b})' for b in blocks)}
-{body}
+{body}{dump_lines(dump, tp, tn)}
 .endc
 .end
 """
@@ -437,6 +453,18 @@ def main():
     for v in ("none", "dai"):
         with open(os.path.join(DECKS, f"C2_ring_{v}.spice"), "w") as fh:
             fh.write(deck_ring(v))
+    with open(os.path.join(DECKS, "K1_kvco_dai.spice"), "w") as fh:
+        fh.write(deck_ring("dai", K1_VCTRL, [a.vtail]))
+    # J1: open loop, ideal vctrl -- the only thing that can move a clock edge
+    # is the data, through the PD's load on the clock lines. "quiet" holds the
+    # data constant as the control.
+    j1 = deck_ring("dai", [0.79], [a.vtail], nbits=240, dump="J1_prbs.raw")
+    with open(os.path.join(DECKS, "J1_clkjit_dai.spice"), "w") as fh:
+        fh.write(j1)
+    q = j1.replace("J1_prbs.raw", "J1_quiet.raw")
+    q = q.replace(q[q.index("Vd vd 0 PWL("):q.index("\n", q.index("Vd vd 0 PWL("))], "Vd vd 0 0.075")
+    with open(os.path.join(DECKS, "J1_quiet_dai.spice"), "w") as fh:
+        fh.write(q)
     # the closed loop is generated for the variant/vtail chosen from C2
     subs = gp.parse(netlist)
     for path in ("cml_cells.inc", "cml_top.inc"):

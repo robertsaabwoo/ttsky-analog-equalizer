@@ -154,6 +154,38 @@ cycle slips. The table therefore uses the window from 5 µs (601 edges):
    `c2c_Wt=3` (56 µA per converter): ripple **220.5 mV pp**, worse rather than
    better (188.3 at `c2c_Wt=1`). Converter drive is not the lever.
 
+3. *"The CML ring locks on a steeper part of the VCO curve."* K1 (2026-10-11)
+   swept `vctrl` 0.770–0.820 V in 5 mV steps, open loop, against the same
+   sweep of the frozen clock path (`../power/decks/K1_kvco_frozen.spice`,
+   P3 with a finer `foreach`):
+
+   | vctrl (V) | 0.770 | 0.775 | 0.780 | 0.785 | 0.790 | 0.795 | 0.800 | 0.810 | 0.820 |
+   |---|---|---|---|---|---|---|---|---|---|
+   | frozen (MHz) | 589.8 | 593.5 | 596.8 | 599.6 | 602.2 | 604.3 | 606.2 | 608.9 | 610.4 |
+   | CML, `vtail` 0.85 (MHz) | 596.9 | 600.2 | 603.2 | 605.7 | 607.9 | 609.8 | 611.3 | 613.5 | 614.5 |
+
+   Neither curve has a sharp knee; both flatten smoothly. The CML ring is
+   ~6 MHz faster at equal `vctrl`, so it reaches 601 MHz lower on the curve,
+   where Kvco is ~0.65 MHz/mV against ~0.55 for the frozen ring at its own
+   601 MHz point: ~20 % more gain, not the 2.5x in jitter.
+
+**Where the cycle-to-cycle jitter is NOT coming from: `vctrl`.** In C4's settled
+window (5–6 µs), `vctrl` minus its own one-UI moving average is only 1.7 mV
+RMS. At ~0.65 MHz/mV that is under ~3 ps of period change per cycle, against
+46 ps measured. The cycle-to-cycle jitter must enter after the ring: the
+weakened buffer, the `cml2cmos` converters, or data-dependent kickback from the
+PD's latches onto a clock line driven by a 212 µA buffer. The *slow* `vctrl`
+wander is real and larger than the frozen design's (C4 116 mV pp vs C27 62 mV
+pp, same 5.8–5.9 µs window, same loop filter and charge pump); it moves on a
+20–90 ns time scale (autocorrelation crosses zero at ~20 ns) and plausibly
+explains the worse sampling-phase error, which is a separate problem.
+
+**Next, decks ready but not yet run:** `J1_clkjit_dai` / `J1_quiet_dai` (open
+loop, ideal `vctrl` 0.79 V, 400 ns, PRBS vs constant data). With no noise
+source in the transient, any cycle-to-cycle jitter is data coupled into the
+clock; `j1_analyze.py` reports it at the ring tap, the buffer output and
+`rclk_p`, which locates where it enters.
+
 **A trap found along the way:** in C3's 0.6–1.0 µs window the loop is still
 acquiring (`vctrl` moved 0.8115 → 0.7858 V within the window in the
 `c2c_Wt=3` run). Ripple from that window mixes acquisition with dither, so
@@ -201,6 +233,8 @@ VTAIL=0.8 ./run_cml.sh C3_chain_dai
 | C2_ring_none | clock side, no buffer, `vctrl` sweep (5 points) | ~5 min |
 | C2_ring_dai | clock side, one `diff_amp_inv`, `vtail` sweep (7 points) | ~6 min |
 | C3_chain_dai | whole macro, closed loop, metered per cell | ~3.5–10 min |
+| K1_kvco_dai | ring + one buffer at `vtail`, fine `vctrl` sweep, 10 points | ~17 min |
+| J1_clkjit_dai, J1_quiet_dai | open-loop clock dump, PRBS / constant data; `./j1_analyze.py results/J1_prbs.raw` | a few min each (not yet run) |
 | C4_jitter_dai | C3 for 6 µs, writes `C4_chain.raw`; then `python3 ../../c27_analyze.py C4_chain.raw 1.665 5000` in `results/` | **~28 min** |
 
 | file | what it does |
