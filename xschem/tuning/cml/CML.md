@@ -343,6 +343,50 @@ it is made: convert Q5, Q2 and B to CMOS and use the frozen `robs_xor` (the
 ~85 µA cheaper than CML XORs + 2 converters), so the pump is switched by
 full-rail static-CMOS edges, as in the frozen design. Check with U1/U2 first.
 
+**U2_cx (2026-10-11): static-CMOS XORs do not fix it -- negative result.**
+`../vw/cx_cells.inc`: the same 8 CML latches, outputs converted to CMOS, then
+`cx6` = the frozen `robs_xor` with 6 converters (true + complement) or `cx3`
+= `sky130_fd_sc_hd__xor2_1` with 3 converters. Same U2 bench:
+
+| PD | C1 step per decision | fast spike step, pp |
+|---|---|---|
+| CML (today) | −24.53 mV | 45.9 mV |
+| cx6 (`robs_xor`) | −20.06 mV | 42.9 mV |
+| cx3 (`xor2_1`) | −22.59 mV | 46.0 mV |
+| frozen | **−9.00 mV** | 85.9 mV |
+
+So the pump's edge type is not what makes the frozen PD different.
+
+**U3 (2026-10-11): the frozen PD's `up` line glitches, and the glitches
+cancel 61 % of every decision.** `../vw/decks/U3_probe.spice` (~2 min): the
+frozen PD (as `../vw/alex_probe.inc`, B±/Q5/Q2 brought out as ports; node
+names with `+` vanish from rawfiles, docs/SIMULATION_TRAPS.md §2) and the CML
+PD, at −0.03 UI, 30 UI.
+- Both make the same decisions at the same times. The frozen edge sample
+  (B±) and data samples are clean logic levels: no both-low state.
+- The CML `down` pulse lasts ~0.25 UI longer (slow 18 µA converter).
+- **The frozen `up` line glitches at every decision: 12 pulses of 95–100 ps,
+  peaking at 1.12 V** (`up` = Q2 ⊕ B, with Q2 and B switching on the same
+  clock edge into a static XOR). Each turns the opposing pump current on.
+
+| UIs 8–28 | main-pulse charge | opposing charge | net |
+|---|---|---|---|
+| frozen | 34.21 fC | −20.94 fC | **13.28 fC** |
+| CML | 35.74 fC | −0.76 fC | **34.98 fC** |
+
+2.6x, matching U2's C1 ratio (2.7x) and the period-jitter ratio (2.5x).
+**The frozen design's loop gain is set in part by an XOR glitch.** Glitch
+height depends on gate delays, so the frozen loop's effective gain will move
+with PVT; nothing in the PVT runs measured that. The `cx` variants do not
+glitch because their XOR inputs arrive through matched converters.
+
+**Deliberate equivalent for the CML design: C1 x2.67.** The frozen integral
+path effectively runs at ~0.38x the pump charge, so the same integral step
+per decision comes from C1 = 109 → 291 fF (`cap1` mult 6 → 16, R0-verified;
+~+25 µm²). R stays: U2's kick across R is already similar (123 vs 108 mV).
+Because the effective integral gain then matches the frozen design's,
+acquisition should behave like it. Test: S1 with this C1.
+
 **A trap found along the way:** in C3's 0.6–1.0 µs window the loop is still
 acquiring (`vctrl` moved 0.8115 → 0.7858 V within the window in the
 `c2c_Wt=3` run). Ripple from that window mixes acquisition with dither, so
