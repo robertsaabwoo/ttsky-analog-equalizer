@@ -17,19 +17,19 @@ src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "u1_analyze.
 exec(src.split("for raw in sys.argv")[0])   # read_raw
 
 names, rows = read_raw(sys.argv[1])
-idx = {re.sub(r"^[vi]\((.*)\)$", r"\1", n): i for i, n in enumerate(names)}
+idx = {re.sub(r"^[vi]\((.*)\)$", r"\1", n).lower(): i for i, n in enumerate(names)}
 t = [r[0] for r in rows]
 W = [j for j in range(1, len(t)) if 8 * UI <= t[j] <= 28 * UI]
 
 
 def col(n):
-    return [rows[j][idx[n]] for j in W]
+    return [rows[j][idx[n.lower()]] for j in W]
 
 
 def charge(n):
     qp = qn = 0.0
     for j in W:
-        q = rows[j][idx[n]] * (t[j] - t[j - 1])
+        q = rows[j][idx[n.lower()]] * (t[j] - t[j - 1])
         if q > 0:
             qp += q
         else:
@@ -41,7 +41,7 @@ def charge(n):
 def glitches(n):
     ex, on, pk = [], None, 0.0
     for j in W:
-        v = rows[j][idx[n]]
+        v = rows[j][idx[n.lower()]]
         if v > 0.9 and on is None:
             on, pk = t[j], v
         if on is not None:
