@@ -28,18 +28,21 @@ from gen_cml import prbs7, pwl, NETDIR, UI  # noqa: E402
 import gen_power as gp  # noqa: E402
 
 # (label, PD, offset, extra cap2 copies): extra=0 is today's C2 (16 fF)
-CONFIGS = [("cml_c2x1", "cml", -0.03, 0), ("cml_c2x2", "cml", -0.03, 1),
-           ("cml_c2x4", "cml", -0.03, 3), ("frz_c2x1", "frozen", -0.03, 0)]
+C2_CONFIGS = [("cml_c2x1", "cml", -0.03, 0), ("cml_c2x2", "cml", -0.03, 1),
+              ("cml_c2x4", "cml", -0.03, 3), ("frz_c2x1", "frozen", -0.03, 0)]
+# U2_cx: static-CMOS XOR variants of the CML PD (cx_cells.inc), today's C2
+CX_CONFIGS = [("cml", "cml", -0.03, 0), ("cx6", "cx6", -0.03, 0),
+              ("cx3", "cx3", -0.03, 0), ("frozen", "frozen", -0.03, 0)]
 NBITS = 25
 VLOCK = 0.79
 
 
-def deck():
+def deck(CONFIGS, name):
     bits = prbs7(NBITS + 20)[20:]          # skip the all-ones seed run
     tstop = NBITS * UI
     lines, saves, ics = [], [], []
     for k, (label, pd, ph, extra) in enumerate(CONFIGS):
-        if pd == "cml":
+        if pd != "frozen":
             lo, hi, tr = 1.03, 1.43, 200e-12
         else:
             lo, hi, tr = 0.0, 1.8, 80e-12
@@ -47,9 +50,10 @@ def deck():
         pw = UI / 2 - tr
         lines.append(f"* {label}: {pd} PD, offset {ph:+.2f} UI, C2 x{extra + 1}")
         lines.append(f"Vck{k} ck{k} 0 PULSE({lo} {hi} {td:.4e} {tr} {tr} {pw:.4e} {UI})")
-        if pd == "cml":
+        if pd != "frozen":
+            cell = "cml_pd" if pd == "cml" else f"cml_pd_{pd}"
             lines.append(f"Vckb{k} ckb{k} 0 PULSE({hi} {lo} {td:.4e} {tr} {tr} {pw:.4e} {UI})")
-            lines.append(f"xpd{k} vdd 0 dn{k} up{k} ck{k} ckb{k} dp dm vbias cml_pd")
+            lines.append(f"xpd{k} vdd 0 dn{k} up{k} ck{k} ckb{k} dp dm vbias {cell}")
         else:
             lines.append(f"xinv{k} vdd 0 ck{k} ckb{k} single_inverter")
             lines.append(f"xpd{k} vdd 0 dn{k} up{k} ck{k} dp ckb{k} dm vbias alexander_phase_detector")
@@ -71,6 +75,7 @@ def deck():
 .include {gp.PDK}/sky130A/libs.ref/sky130_fd_sc_hd/spice/sky130_fd_sc_hd.spice
 .include {NETDIR}/frozen.inc
 .include {NETDIR}/cml_cells.inc
+.include {HERE}/cx_cells.inc
 .options method=gear reltol=0.001
 Vdd vdd 0 1.8
 Vb vbias 0 0.9
@@ -84,7 +89,7 @@ Em dm 0 vol='1.3 - v(vd)'
   tran 2p {tstop:.4e}
 {lets}
   set filetype=ascii
-  write U2_c2.raw {names}
+  write {name}.raw {names}
 .endc
 .end
 """
@@ -92,6 +97,7 @@ Em dm 0 vol='1.3 - v(vd)'
 
 if __name__ == "__main__":
     os.makedirs(os.path.join(HERE, "decks"), exist_ok=True)
-    with open(os.path.join(HERE, "decks", "U2_c2.spice"), "w") as fh:
-        fh.write(deck())
-    print("wrote decks/U2_c2.spice")
+    for cfg, name in ((C2_CONFIGS, "U2_c2"), (CX_CONFIGS, "U2_cx")):
+        with open(os.path.join(HERE, "decks", f"{name}.spice"), "w") as fh:
+            fh.write(deck(cfg, name))
+    print("wrote decks/U2_c2.spice decks/U2_cx.spice")

@@ -19,7 +19,8 @@ UI = 1.665e-9
 raw = sys.argv[1]
 src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "u1_analyze.py")).read()
 exec(src.split("for raw in sys.argv")[0])   # read_raw
-hdr = open(os.path.join(os.path.dirname(raw) or ".", "decks", "U2_c2.spice")).read().splitlines()[:4]
+hdr = open(os.path.join(os.path.dirname(raw) or ".", "decks",
+                        os.path.basename(raw)[:-4] + ".spice")).read().splitlines()[:4]
 labels = hdr[2].split()[2:]
 bits = [int(c) for c in hdr[3].split()[2]]
 ntr = sum(1 for n in range(4, len(bits)) if bits[n] != bits[n - 1])

@@ -1,0 +1,36 @@
+* cx_cells.inc -- CML phase detector with STATIC CMOS XORs (sandbox, 2026-10-11)
+* Same 8 CML latches as cml_pd (cells from ../cml/.netlists/cml_cells.inc), but
+* the latch outputs Q5, Q2 and B are converted to CMOS and XORed in static CMOS,
+* so the charge pump is switched by full-rail static-CMOS edges, as in the
+* frozen alexander_phase_detector. x3 is a plain cml_dff: the level-shifted
+* slave existed only for the CML XOR's input common mode.
+*   down = Q5 xor B,  up = Q2 xor B   (same logic as the frozen PD)
+
+* cx6: the frozen robs_xor, which needs true + complement inputs -> 6 converters
+.subckt cml_pd_cx6 VDD VSS down up ck ckb d db vbias
+x5 q5 q5b d db VDD VSS ck ckb vbias cml_dff
+x1 q1 q1b d db VDD VSS ckb ck vbias cml_dff
+x2 q2 q2b q5 q5b VDD VSS ck ckb vbias cml_dff
+x3 b bb q1 q1b VDD VSS ck ckb vbias cml_dff
+xc5p a5 q5 q5b VDD VSS vbias cml2cmos
+xc5m a5b q5b q5 VDD VSS vbias cml2cmos
+xc2p a2 q2 q2b VDD VSS vbias cml2cmos
+xc2m a2b q2b q2 VDD VSS vbias cml2cmos
+xcbp bp b bb VDD VSS vbias cml2cmos
+xcbm bm bb b VDD VSS vbias cml2cmos
+x6 a5 VDD bm VSS down a5b bp robs_xor
+x7 a2 VDD bm VSS up a2b bp robs_xor
+.ends
+
+* cx3: standard-cell xor2_1, true inputs only -> 3 converters
+.subckt cml_pd_cx3 VDD VSS down up ck ckb d db vbias
+x5 q5 q5b d db VDD VSS ck ckb vbias cml_dff
+x1 q1 q1b d db VDD VSS ckb ck vbias cml_dff
+x2 q2 q2b q5 q5b VDD VSS ck ckb vbias cml_dff
+x3 b bb q1 q1b VDD VSS ck ckb vbias cml_dff
+xc5 a5 q5 q5b VDD VSS vbias cml2cmos
+xc2 a2 q2 q2b VDD VSS vbias cml2cmos
+xcb bp b bb VDD VSS vbias cml2cmos
+x6 a5 bp VSS VSS VDD VDD down sky130_fd_sc_hd__xor2_1
+x7 a2 bp VSS VSS VDD VDD up sky130_fd_sc_hd__xor2_1
+.ends
