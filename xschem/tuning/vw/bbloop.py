@@ -42,7 +42,7 @@ def prbs7(n, seed=0x7F):
     return out
 
 
-def run(delay, kvco, icp, r, c1, c2, nui=20000, nsub=32, settle=6000, width=1.0):
+def run(delay, kvco, icp, r, c1, c2, nui=20000, nsub=32, settle=6000, width=1.0, tpl=None):
     dt = UI / nsub
     bits = prbs7(nui + 1)
     vc1 = vctrl = 0.0            # deviations from the lock point
@@ -50,12 +50,20 @@ def run(delay, kvco, icp, r, c1, c2, nui=20000, nsub=32, settle=6000, width=1.0)
     pending = []                 # (start_substep, sign)
     k_delay = int(round(delay * nsub))
     drive_until, drive_sign = -1, 0
+    # template mode: each decision ADDS its measured pump current (spikes and
+    # all) into a future-current buffer; overlapping decisions superpose
+    future = [0.0] * (nui * nsub + 4 * nsub) if tpl else None
     VC, C1, PER, PHI, DEC = [], [], [], [], []
     for n in range(nui):
         # decision at this UI boundary (sampled with the current phase)
         if bits[n + 1] != bits[n]:
             d = 1 if phi > 0 else -1
-            pending.append((n * nsub + k_delay, d))
+            if tpl:
+                w = tpl["up"] if d > 0 else tpl["down"]
+                for s_, cur in enumerate(w):
+                    future[n * nsub + s_] += cur
+            else:
+                pending.append((n * nsub + k_delay, d))
             if n >= settle:
                 DEC.append(d)
         f_acc = 0.0
@@ -64,7 +72,10 @@ def run(delay, kvco, icp, r, c1, c2, nui=20000, nsub=32, settle=6000, width=1.0)
             while pending and pending[0][0] <= k:
                 _, sg = pending.pop(0)
                 drive_until, drive_sign = k + int(round(width * nsub)), sg
-            i = icp * drive_sign if k < drive_until else 0.0
+            if tpl:
+                i = future[k]
+            else:
+                i = icp * drive_sign if k < drive_until else 0.0
             ir = (vctrl - vc1) / r
             vctrl += (i - ir) * dt / c2
             vc1 += ir * dt / c1
@@ -95,12 +106,20 @@ def main():
     ap.add_argument("--c1", type=float, default=121, help="fF")
     ap.add_argument("--c2", type=float, default=19, help="fF")
     ap.add_argument("--width", type=float, default=1.0, help="charge-pump pulse per decision, UI")
+    ap.add_argument("--template", help="frozen|cml|...: use the measured U1 pump current "
+                    "per decision from templates.json (u1_templates.py) instead of a pulse")
     a = ap.parse_args()
     kv = a.kvco * 1e6 / 1e-3
-    print(f"pulse {a.width} UI  Kvco {a.kvco} MHz/mV  Icp {a.icp} uA  R {a.r} k  C1 {a.c1} fF  C2 {a.c2} fF")
+    tpl = None
+    if a.template:
+        import json
+        tj = json.load(open("templates.json"))
+        assert tj["nsub"] == 32
+        tpl = tj["templates"][a.template]
+    print(f"{'template ' + a.template if a.template else 'pulse ' + str(a.width) + ' UI'}  Kvco {a.kvco} MHz/mV  Icp {a.icp} uA  R {a.r} k  C1 {a.c1} fF  C2 {a.c2} fF")
     print("delay(UI)  vctrl RMS  vctrl pp   C1 RMS  period RMS  phase RMS  same-sign runs mean/max")
     for d in a.delay:
-        m = run(d, kv, a.icp * 1e-6, a.r * 1e3, a.c1 * 1e-15, a.c2 * 1e-15, width=a.width)
+        m = run(d, kv, a.icp * 1e-6, a.r * 1e3, a.c1 * 1e-15, a.c2 * 1e-15, width=a.width, tpl=tpl)
         print(f"{d:8.2f}  {m['vctrl_rms']:7.1f} mV {m['vctrl_pp']:7.1f} mV {m['c1_rms']:6.1f} mV "
               f"{m['per_rms']:7.1f} ps  {m['phi_rms']:6.2f} %UI   {m['run_mean']:5.2f} / {m['run_max']}")
 
