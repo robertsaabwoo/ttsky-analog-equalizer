@@ -8,7 +8,11 @@ recovered clock for the output pins)?
 
 **Answer, tt / 27 °C / 1.8 V, closed loop on PRBS7:** the loop locks (601.10
 MHz, same stimulus as `../power/` P0) and the macro goes from **4.86 mA / 8.74 mW
-to 1.86 mA / 3.34 mW (−62 %)**. **But jitter is worse:**
+to 1.86 mA / 3.34 mW (−62 %)**. **Update 2026-10-11:** the jitter penalty is understood and largely fixed: with
+the loop filter scaled (R x0.38, C1 and C2 x2.67), sampling-phase error at lock
+is 5.29 % UI against the frozen 11.96 % (see "The cause, found with unit
+tests"). Acquisition, CID and PVT are not yet re-run. Original finding:
+**jitter is worse:**
 period jitter 2.77 % UI RMS against 1.11 % for the frozen design (§C27; both
 figures are the RMS of the period, which `c27_analyze.py` labelled
 "cycle-to-cycle" -- see the J1 section), sampling-phase error 13.9 % against
@@ -406,6 +410,31 @@ x0.38, C1 x2.67, C2 x2.67** -- same bandwidth, damping and R·C2 as the
 frozen loop's effective values. R0-verified: R = 33.2 kΩ (L 15 → 5.7),
 C1 = 291 fF (`cap1` mult 6 → 16), C2 = 43.5 fF (`cap2` W 1.1 → 2.94).
 
+**S1 with the scaled filter (2026-10-11): the fix.** R 33.2 kΩ, C1 291 fF,
+C2 43.5 fF (`../vw/decks/S1_scaled.spice`, ~5 min):
+
+| S1, 0.5–1.5 µs | CML, today's filter | CML, scaled filter |
+|---|---|---|
+| period RMS | 39.41 ps = 2.37 % UI | **27.60 ps = 1.66 % UI** |
+| sampling-phase RMS | 9.61 % UI | **5.29 % UI** |
+| samples < 25 mV from threshold | 8 / 600 | **0 / 600** |
+| `vctrl` RMS / pp | 33.8 / 222 mV | **17.0 / 84** mV |
+| C1 node RMS / pp | 23.6 / 146 mV | 8.1 / 43 mV |
+| across R RMS / pp | 24.3 / 107 mV | 14.9 / 57 mV |
+| same-sign runs mean / max | 3.7 / 18 | 3.2 / 9 |
+| `vctrl` mean | 0.791 V | 0.782 V |
+
+Against the frozen design (§C27, 6 µs run: 1.11 % UI period, 11.96 % UI
+sampling phase, 13 / 1201 samples < 25 mV), the CML design with the scaled
+filter has ~2.3x better sampling-phase error, the figure that decides BER, and
+~1.5x the period jitter. (The short S1 window reads lower than a 6 µs run:
+39.4 against C4's 46 ps on the same design.) Cost: ~+29 µm² of MOS cap,
+power unchanged.
+
+**Not yet verified with the scaled filter:** cold-start acquisition (the
+precharge seed and the bigger C1 slow the integral path to the frozen loop's
+*effective* rate, but that is an argument, not a run), CID (§16e), PVT.
+
 **A trap found along the way:** in C3's 0.6–1.0 µs window the loop is still
 acquiring (`vctrl` moved 0.8115 → 0.7858 V within the window in the
 `c2c_Wt=3` run). Ripple from that window mixes acquisition with dither, so
@@ -414,11 +443,11 @@ C3-vs-P0 ripple comparisons are suggestive at best. Only settled 6 µs runs
 
 ## Open items, in priority order
 
-1. **Verify the loop-filter fix in SPICE.** Cause found (see "The cause,
-   found with unit tests"): ~2x net charge per decision from charge-pump
-   switching transients. Next: S1, CML closed loop for 1.5 µs started near
-   lock, today's R against R halved (43 kΩ, L 15 → 7.5); then acquisition and
-   CID with the chosen R.
+1. **Verify the scaled filter beyond lock.** Done: S1 at lock (above). Next:
+   cold-start acquisition with the precharge (a few µs from power-up), then
+   CID runs (§16e), then the frozen design's glitch-dependent loop gain at
+   PVT corners (U3 at corners, ~2 min each), which bears on the taped-out
+   candidate as well.
 2. **`vtail` = 0.85 V is an ideal source here.** On chip it needs a bias. The
    likely route is resizing the buffer tail so the existing 0.9 V `vbias` pad
    gives the same ~212 µA.
