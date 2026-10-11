@@ -1,22 +1,21 @@
 magic
 tech sky130A
 magscale 1 2
-timestamp 1788138068
-<< pwell >>
-rect 1034 2076 1312 2128
-<< metal1 >>
-rect 1132 2594 2506 2646
-rect 860 2178 1040 2546
-rect 1394 2166 1768 2542
-rect 2500 2168 2714 2542
-rect 1034 2076 1312 2128
-rect 1758 2064 2418 2126
+timestamp 1787791303
+<< checkpaint >>
+rect -1060 2089 2562 2098
+rect -1060 2045 3478 2089
+rect -1313 1974 3478 2045
+rect -1366 -1251 3478 1974
+rect -1366 -1260 2562 -1251
+rect -1366 -1313 2309 -1260
+rect -1366 -1366 1872 -1313
 use sky130_fd_pr__pfet_01v8_XGN4NP  XM1
 timestamp 1787791303
-transform 1 0 2135 0 1 2363
+transform 1 0 751 0 1 419
 box -551 -419 551 419
 use sky130_fd_pr__nfet_01v8_F5PS5H  XM2
 timestamp 1787791303
-transform 1 0 1221 0 1 2362
+transform 1 0 1859 0 1 419
 box -359 -410 359 410
 << end >>
