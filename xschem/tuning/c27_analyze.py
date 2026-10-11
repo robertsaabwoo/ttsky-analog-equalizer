@@ -93,9 +93,9 @@ if len(use) < 100:
 ue = [e for e, _ in use]
 us = [s for _, s in use]
 
-# ---- 1. cycle-to-cycle period jitter (comparable to C26's usable number) ---
+# ---- 1. period jitter: RMS of the period itself, NOT adjacent-period (c2c) ---
 per = [b - a for a, b in zip(ue, ue[1:])]
-print("\n--- period (cycle-to-cycle) ---")
+print("\n--- period jitter (RMS of the period; not adjacent-period c2c) ---")
 print(f"  mean period : {mean(per)*1e12:9.2f} ps   (ideal UI {UI*1e12:.2f} ps)")
 print(f"  mean error  : {(mean(per)-UI)*1e12:9.2f} ps = {(mean(per)-UI)/UI*100:+.3f} % UI")
 print(f"  period RMS  : {pstdev(per)*1e12:9.2f} ps = {pstdev(per)/UI*100:.2f} % UI")

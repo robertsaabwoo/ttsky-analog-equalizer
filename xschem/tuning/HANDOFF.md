@@ -22,7 +22,8 @@
 >    **The remaining risk is jitter, not settling.** 93.8 mV of vctrl dither
 >    only matters if it walks the sampling instant out of the 0.350 UI the CTLE
 >    delivers at the worst corner — and phase error has never been measured on
->    this chain. See NOTES_CTLE §C24-§C25.
+>    this chain. See NOTES_CTLE §C24-§C25. *(Since measured: §C27, 11.96 % UI
+>    RMS sampling-phase error, 13 of 1201 samples within 25 mV of threshold.)*
 >
 > Also from §C24: `rclk-` is NOT an instantaneous complement of `rclk+` — it is
 > `rclk+` through an inverter, and the two phases have ~33 % / ~61 % duty
@@ -113,9 +114,9 @@ bare supply ramp with no `.ic` anywhere. Tightest margin is **31 mV at ff/−40 
 |---|---|---|
 | baud rate / UI | 600.6 Mb/s / 1.665 ns | §14 |
 | lock frequency | 600.63-600.78 MHz | §17e/f |
-| vctrl lock point | 0.792 V | §17e |
-| locked vctrl dither | ~45 mV pk-pk | §19d |
-| jitter | 0.68 % UI RMS, 2.5 % UI pk-pk | §16b |
+| vctrl lock point | 0.792 V on ideal data; 0.799 V on PRBS7 through the CTLE (NOTES_CTLE §C25-B) | §17e |
+| locked vctrl dither | ~45 mV pk-pk on ideal data; 93.8 mV pp on PRBS7 (NOTES_CTLE §C25-B) | §19d |
+| period jitter (RMS of the clock period) | 0.68 % UI RMS, 2.5 % UI pk-pk, CDR alone on ideal data; 1.11 % UI full chain on PRBS7 (NOTES_CTLE §C27) | §16b |
 | VCO dead-zone cliff | ~0.65 V at tt/27 °C (0.65-0.79 over PVT) | §20b |
 | VCO range at tt/27 °C | 514-621 MHz | §20b |
 | CP crossover | ~0.663 V — sits on the cliff | §19a |

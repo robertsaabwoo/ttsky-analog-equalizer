@@ -6,7 +6,8 @@
 Reads an ASCII ngspice rawfile containing one voltage vector, finds the rising
 0.9 V crossings by linear interpolation, and reports:
 
-  * period statistics  -- RMS and peak-to-peak cycle-to-cycle jitter;
+  * period statistics  -- RMS and peak-to-peak of the period (period jitter,
+    not adjacent-period cycle-to-cycle);
   * phase error against the ideal bit grid (n * UI), which is the number that
     decides whether the sampling instant stays inside the eye.
 

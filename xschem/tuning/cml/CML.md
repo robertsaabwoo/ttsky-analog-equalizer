@@ -10,7 +10,7 @@ recovered clock for the output pins)?
 MHz, same stimulus as `../power/` P0) and the macro goes from **4.86 mA / 8.74 mW
 to 1.86 mA / 3.34 mW (−62 %)**. **But jitter is worse:**
 period jitter 2.77 % UI RMS against 1.11 % for the frozen design (§C27; both
-figures are the RMS of the period, which `c27_analyze.py` labels
+figures are the RMS of the period, which `c27_analyze.py` labelled
 "cycle-to-cycle" -- see the J1 section), sampling-phase error 13.9 % against
 12.0 % UI RMS, and 1.8 % against 1.1 % of samples within 25 mV of the decision
 threshold (C4, below). **Cause located (2026-10-11): all of it is slow `vctrl`
@@ -55,7 +55,7 @@ pad model, 50 fF on each output pin, averaged 600–1000 ns.
 | recovered clock in the window | 601.05 MHz | 601.10 MHz |
 | `vctrl` (two halves of the window) | 0.7967 → 0.7934 V | 0.7964 → 0.7953 V |
 | **`vctrl` ripple** | **93.7 mV pp** | **188.3 mV pp** |
-| `up` / `down` duty | not measured | 0.237 / 0.299 |
+| `up` / `down` duty (fraction of time high) | 0.206 / 0.318 | 0.237 / 0.299 |
 
 Now the largest items are the ring core (631 µA, which stays CML: it is the
 tuning element), the output drivers (252 µA, set by the assumed pin load), the
@@ -135,31 +135,36 @@ cycle slips. The table therefore uses the window from 5 µs (601 edges):
 | | frozen (§C27, from 4 µs) | CML (C4, from 5 µs) |
 |---|---|---|
 | mean period | — (601.05 MHz in P0) | 1664.87 ps (−0.008 % UI) |
-| period RMS (`c27_analyze.py`'s "cycle-to-cycle") | 18.45 ps = 1.11 % UI | **46.16 ps = 2.77 % UI** |
+| period jitter, RMS of the period (`c27_analyze.py`) | 18.45 ps = 1.11 % UI | **46.16 ps = 2.77 % UI** |
 | true cycle-to-cycle RMS, adjacent periods (`edge_steps.py`) | 12.63 ps = 0.76 % UI | 24.86 ps = 1.49 % UI |
 | period pk-pk | 111.5 ps = 6.70 % UI | 292.8 ps = 17.58 % UI |
 | sampling-phase error RMS | 199 ps = 11.96 % UI | 231.6 ps = 13.91 % UI |
 | sampling-phase error pk-pk | 77 % UI | 76.8 % UI |
 | eye at the sampling instant, mean | 181 mV | 162.3 mV |
 | samples < 25 mV from threshold | 13 / 1201 (1.1 %) | 11 / 601 (1.8 %) |
-| `vctrl` ripple, settled 100 ns window | — | 115.6 mV pp |
+| `vctrl` ripple, 5.8–5.9 µs | 61.8 mV pp | 115.6 mV pp |
 
 **Hypotheses tested and ruled out:**
 
-1. *"The CML PD fires up and down at once near lock."* At settled lock in C4,
-   `up`/`down` duty is 0.481 / 0.504, summing to ~1.0. But the frozen design
-   (P0 rerun with duty added, same 0.6–1.0 µs window as C3) shows
-   **0.371 / 0.573, summing to 0.94**, against the CML design's 0.237 / 0.299
-   in that window. The frozen PD is *more* active, not less, so activity does
-   not explain the difference.
+1. *"The CML PD fires more often near lock."* Same 0.6–1.0 µs window:
+   frozen (P0) **0.206 / 0.318**, CML (C3) **0.237 / 0.299**, as fractions of
+   time high; both sum to ~0.53, the data's transition density. At settled
+   lock in C4, CML is 0.267 / 0.280. The two PDs are equally active, so
+   activity does not explain the difference.
+   *Correction 2026-10-11:* this entry originally compared the frozen design's
+   0.371 / 0.573 against CML's 0.237 / 0.299 and called the frozen PD "more
+   active". The frozen numbers were the log's average *voltages*; the CML ones
+   had already been divided by 1.8 V in `collect_cml.py`. The conclusion
+   survives, for a different reason.
 2. *"The 18 µA `up`/`down` converters add loop latency."* C3 rerun with
    `c2c_Wt=3` (56 µA per converter): ripple **220.5 mV pp**, worse rather than
    better (188.3 at `c2c_Wt=1`). Converter drive is not the lever.
 
 3. *"The CML ring locks on a steeper part of the VCO curve."* K1 (2026-10-11)
    swept `vctrl` 0.770–0.820 V in 5 mV steps, open loop, against the same
-   sweep of the frozen clock path (`../power/decks/K1_kvco_frozen.spice`,
-   P3 with a finer `foreach`):
+   sweep of the frozen clock path (`../power/decks/P3_ring.spice` with its
+   `foreach` list replaced by these points; `decks/` is regenerated and
+   gitignored):
 
    | vctrl (V) | 0.770 | 0.775 | 0.780 | 0.785 | 0.790 | 0.795 | 0.800 | 0.810 | 0.820 |
    |---|---|---|---|---|---|---|---|---|---|
@@ -171,12 +176,12 @@ cycle slips. The table therefore uses the window from 5 µs (601 edges):
    where Kvco is ~0.65 MHz/mV against ~0.55 for the frozen ring at its own
    601 MHz point: ~20 % more gain, not the 2.5x in jitter.
 
-**Where the cycle-to-cycle jitter is NOT coming from: `vctrl`.** In C4's settled
-window (5–6 µs), `vctrl` minus its own one-UI moving average is only 1.7 mV
-RMS. At ~0.65 MHz/mV that is under ~3 ps of period change per cycle, against
-46 ps measured. The cycle-to-cycle jitter must enter after the ring: the
-weakened buffer, the `cml2cmos` converters, or data-dependent kickback from the
-PD's latches onto a clock line driven by a 212 µA buffer. The *slow* `vctrl`
+**A wrong inference, kept as a record.** In C4's settled window (5–6 µs),
+`vctrl` minus its own one-UI moving average is only 1.7 mV RMS, worth under
+~3 ps of period change per cycle. That was read as "the 46 ps of
+cycle-to-cycle jitter must enter after the ring". J1 (below) refuted it: the
+46 ps is *period* jitter, not adjacent-period jitter, and slow `vctrl` wander
+is exactly what produces period jitter. The *slow* `vctrl`
 wander is real and larger than the frozen design's (C4 116 mV pp vs C27 62 mV
 pp, same 5.8–5.9 µs window, same loop filter and charge pump); it moves on a
 20–90 ns time scale (autocorrelation crosses zero at ~20 ns) and plausibly
@@ -196,7 +201,7 @@ edges from 60 ns:
 Data-dependent kickback from the CML latches onto the weak clock line is real
 but ~1 ps: it is not the 46 ps.
 
-**Then where?** `c27_analyze.py` labels `pstdev(period)` as "cycle-to-cycle".
+**Then where?** `c27_analyze.py` labelled `pstdev(period)` "cycle-to-cycle" (fixed 2026-10-11).
 It is period jitter, which is exactly what slow `vctrl` wander produces. Each
 C4 period predicted from `vctrl` (averaged over that period, through the K1
 curve) against the measured period: **correlation 0.972**, predicted RMS 37.0 ps
@@ -209,12 +214,12 @@ figure quoted elsewhere as "cycle-to-cycle" is the same period-RMS metric.
 So the CML design has **one** problem, not two: the loop's `vctrl` wanders
 ~2x more (44.5 mV RMS, 283 mV pp over 5–6 µs; 116 vs 62 mV pp in the
 5.8–5.9 µs window). The charge pump and loop filter are identical, so the
-difference is in what the PD tells the pump. The leading candidate: with R
-~80 kΩ and 1.26 µA, a pump pulse puts ~100 mV across R at once. The frozen
-PD's `up` and `down` overlap (duty sum 0.94 at a transition density of ~0.5),
-and overlapping pulses cancel in the pump; the CML PD's are cleanly exclusive
-(C1), so every decision lands as a full kick. Testing this needs `up`, `down`
-and the C1 node saved in a settled closed loop, for both designs.
+difference is in what the PD tells the pump. (An earlier version of this note
+proposed that the frozen PD's `up`/`down` overlap and cancel. That rested on
+the volts-vs-fraction duty mix-up corrected in hypothesis 1, and is withdrawn.)
+V1 (`../vw/`) saves `up`, `down` and the C1 node in a settled 6 µs closed loop
+for both designs, to split the wander between R's instantaneous kick and C1's
+integrated drift, and to measure overlap and pulse widths directly.
 
 **A trap found along the way:** in C3's 0.6–1.0 µs window the loop is still
 acquiring (`vctrl` moved 0.8115 → 0.7858 V within the window in the

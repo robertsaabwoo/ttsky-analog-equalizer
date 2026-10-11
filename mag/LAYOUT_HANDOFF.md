@@ -1,8 +1,11 @@
 # LAYOUT HANDOFF — everything a layout session needs
 
 Written 2026-08-15, at the point where the schematic design was frozen,
-netlist-verified and the LVS toolchain proven to run. **Nothing has been drawn
-yet.** This file is the starting point for a session dedicated to layout.
+netlist-verified and the LVS toolchain proven to run. *(Update 2026-08-27:
+`single_inverter.mag` has its two devices placed but not wired; its reference
+build, `tcl/build_single_inverter.tcl`, is DRC-clean and LVS-matched. Every
+other cell is still undrawn. See `MAGIC_GUIDE.md`.)* This file is the starting
+point for a session dedicated to layout.
 
 Read `../CLAUDE.md` first for the VM rules — they apply to magic and netgen too.
 
@@ -219,10 +222,12 @@ Layout can start now; these are the only things that might move a device.
    work concludes the dither must come down, the lever is raising `mult`, at the
    cost of slower acquisition (the §16 trade). Doubling it costs ~14 µm².
    **Leave room.**
-2. **Jitter is not fully characterised.** Cycle-to-cycle is fine (1.48 % UI RMS).
-   The long-term phase measurement was confounded and needs redoing on a ≥5 µs
-   run — see `xschem/tuning/ctle/NOTES_CTLE.md` §C26. This is verification of a
-   frozen design, not a design change; it can run while you draw.
+2. **Sampling-phase margin is thin.** Period jitter is fine (1.11 % UI RMS,
+   §C27). The phase error against the data eye, measured on a settled 6 µs run
+   in §C27, is 11.96 % UI RMS, with 13 of 1201 samples within 25 mV of the
+   decision threshold. If that has to come down, the lever is the loop filter
+   (item 1). This is verification of a frozen design, not a design change; it
+   can run while you draw.
 3. **`info.yaml: author` is blank** and will likely fail the docs CI.
 
 ---

@@ -14,7 +14,7 @@ numbers are listed at the end.
 | **Total, locked, PRBS7** | **4.86 mA → 8.74 mW** from the 1.8 V rail |
 | recovered clock during the measurement | 601.05 MHz |
 | `vctrl` during the measurement | 0.797 → 0.793 V, 93.7 mV pp ripple (§C25-B measured 93.8 mV pp) |
-| `up` / `down` duty (charge-pump activity, same window) | 0.371 / 0.573 (added 2026-10-06; the rerun reproduced every other number exactly) |
+| `up` / `down` duty (fraction of time high, same window) | 0.206 / 0.318 (added 2026-10-06; the rerun reproduced every other number exactly. The log's `up_duty`/`dn_duty` are average *voltages*, 0.371 / 0.573 V; divide by 1.8 V) |
 | `vbias` pin (`ua[2]`) | ~0 µA — gates only, as `docs/info.md` says |
 | always-on bias current (CML-style tails + CTLE) | **4.31 mA, 89 %** |
 | CMOS switching current (all inverters, XORs, drivers) | 0.54 mA, 11 % |
