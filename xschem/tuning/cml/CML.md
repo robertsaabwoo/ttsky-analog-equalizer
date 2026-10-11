@@ -294,6 +294,29 @@ directly on C2 (16 fF), a ~60 mV instantaneous step on `vctrl`. SPICE has to
 decide (S1, below). A lower R also changes acquisition and the CID margin
 (§16e), which the model does not cover.
 
+**S1 (2026-10-11): halving R does not help -- negative result.** CML closed
+loop, 1.5 µs started near lock (`.ic` vctrl = C1 node = 0.795 V), analysed
+0.5–1.5 µs; ~8 and ~11 min per run (`../vw/decks/S1_*.spice`). The short run
+reproduces the problem: the baseline gives 39.4 ps period RMS, against C4's
+46 ps from the 6 µs run.
+
+| | R 86 kΩ (today) | R 43 kΩ (L 15 → 7.5) |
+|---|---|---|
+| period RMS | 39.41 ps = 2.37 % UI | 40.36 ps = 2.42 % UI |
+| sampling-phase RMS | 9.61 % UI | 10.17 % UI |
+| samples < 25 mV from threshold | 8 / 600 | 1 / 600 |
+| `vctrl` RMS / pp | 33.8 / 222 mV | 33.0 / 219 mV |
+| across R, RMS / pp | 24.3 / 107 mV | 17.4 / 59 mV |
+| C1 node, RMS / pp | 23.6 / 146 mV | 28.9 / 168 mV |
+| same-sign decision runs, mean / max | 3.7 / 18 | 5.0 / 22 |
+
+The kick across R halves as expected, but the loop loses damping: the clock
+stays on one side longer, C1 integrates longer runs, and the total wander is
+unchanged. **R is not the lever, and `bbloop.py`'s R predictions (−36 %)
+were wrong** -- do not use it for loop-dynamics trade-offs. What drives both
+paths is the net charge per decision, so the next levers attack that: C2 (U2)
+and a PD output stage that switches the pump like the frozen one does.
+
 **A trap found along the way:** in C3's 0.6–1.0 µs window the loop is still
 acquiring (`vctrl` moved 0.8115 → 0.7858 V within the window in the
 `c2c_Wt=3` run). Ripple from that window mixes acquisition with dither, so
