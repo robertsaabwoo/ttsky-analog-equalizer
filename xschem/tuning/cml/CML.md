@@ -387,6 +387,25 @@ per decision comes from C1 = 109 → 291 fF (`cap1` mult 6 → 16, R0-verified;
 Because the effective integral gain then matches the frozen design's,
 acquisition should behave like it. Test: S1 with this C1.
 
+**S1 with C1 x2.67 (2026-10-11): fixes the drift, not the period jitter.**
+
+| S1, 0.5–1.5 µs | baseline | C1 x2.67 |
+|---|---|---|
+| period RMS | 39.41 ps | 39.59 ps |
+| sampling-phase RMS | 9.61 % UI | **8.30 % UI** |
+| samples < 25 mV | 8 / 600 | 6 / 600 |
+| `vctrl` RMS / pp | 33.8 / 222 mV | 32.6 / **152** mV |
+| C1 node RMS / pp | 23.6 / 146 mV | **11.2 / 50** mV |
+| across R RMS / pp | 24.3 / 107 mV | 30.6 / 136 mV |
+| same-sign runs mean / max | 3.7 / 18 | 3.9 / 11 |
+
+The slow drift (which decides sampling margin) halves; the period jitter is
+now set by the kick across R. The frozen glitch cancels charge on both paths,
+so the full equivalent of "0.38x the pump charge" scales the whole filter: **R
+x0.38, C1 x2.67, C2 x2.67** -- same bandwidth, damping and R·C2 as the
+frozen loop's effective values. R0-verified: R = 33.2 kΩ (L 15 → 5.7),
+C1 = 291 fF (`cap1` mult 6 → 16), C2 = 43.5 fF (`cap2` W 1.1 → 2.94).
+
 **A trap found along the way:** in C3's 0.6–1.0 µs window the loop is still
 acquiring (`vctrl` moved 0.8115 → 0.7858 V within the window in the
 `c2c_Wt=3` run). Ripple from that window mixes acquisition with dither, so
