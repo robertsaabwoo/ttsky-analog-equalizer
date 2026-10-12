@@ -40,7 +40,7 @@ def group(path):
         return "cml_bias reference"
     if "ring" in path:
         return "ring core"
-    if "diff_amp_inv" in leaf:
+    if "diff_amp_inv" in leaf or "cml_clkbuf" in leaf:
         return "clock buffer (diff_amp_inv)"
     if "cml2cmos" in leaf:
         return "recovered-clock converters"
