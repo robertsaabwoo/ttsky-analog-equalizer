@@ -110,6 +110,13 @@ x12 rclk- ckb ck Vdd Vss vbn cml2cmos
 x20 Vdd Vss net1 vctrl_precharge
 .ends
 
+.subckt ctle_cdr_rx_cml vinp vinm vbias clkout_p clkout_n VDPWR VGND
+x1 eq_p eq_m vinp vinm VDPWR VGND vbias CTLE
+x2 VDPWR VGND eq_p eq_m vbias rclk_p rclk_m CDR_cml
+x3 VDPWR VGND rclk_p clkout_p inverter_chain
+x4 VDPWR VGND rclk_m clkout_n inverter_chain
+.ends
+
 .subckt CDR_cml_bg Vdd Vss vin+ vin- vbias rclk+ rclk-
 x6 Vdd Vdd Vss Vss net1 net2 net3 bias_n bias_p tiny_pll_charge_pump
 x8 Vss Vss Vdd Vdd bias_n Vdd Vss bias_p tiny_pll_bias_gen
@@ -121,13 +128,6 @@ x3 Vdd Vss net3 net2 ck ckb vin+ vin- vbn cml_pd_cx3w
 x11 rclk+ ck ckb Vdd Vss vbn cml2cmos
 x12 rclk- ckb ck Vdd Vss vbn cml2cmos
 x20 Vdd Vss net1 vctrl_precharge
-.ends
-
-.subckt ctle_cdr_rx_cml vinp vinm vbias clkout_p clkout_n VDPWR VGND
-x1 eq_p eq_m vinp vinm VDPWR VGND vbias CTLE
-x2 VDPWR VGND eq_p eq_m vbias rclk_p rclk_m CDR_cml
-x3 VDPWR VGND rclk_p clkout_p inverter_chain
-x4 VDPWR VGND rclk_m clkout_n inverter_chain
 .ends
 
 .subckt ctle_cdr_rx_cml_bg vinp vinm vbias clkout_p clkout_n VDPWR VGND

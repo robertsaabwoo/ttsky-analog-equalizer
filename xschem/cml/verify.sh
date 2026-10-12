@@ -20,8 +20,7 @@ NET="$OUT/cml_lvs.spice"
 cp "$HERE/reference.spice" "$OUT/ref_full.spice"
 cat "$XS/tuning/cml/.netlists/frozen.inc" >> "$OUT/ref_full.spice"
 fail=0
-for cell in cml_latch cml_dff cml2cmos cml2cmos_w2 cx_xor cml_pd_cx3w cml_bias cml_clkbuf cp_bias \
-            cml_loop_filter ring_core CDR_cml CDR_cml_bg ctle_cdr_rx_cml ctle_cdr_rx_cml_bg; do
+for cell in $(cat "$HERE/cells.txt"); do
   netgen -batch lvs "$NET $cell" "$OUT/ref_full.spice $cell" \
          "$PDK_ROOT/sky130A/libs.tech/netgen/sky130A_setup.tcl" "$OUT/$cell.out" > "$OUT/$cell.log" 2>&1
   # "match uniquely" is topology only: netgen reports wrong W/L/mult on a
