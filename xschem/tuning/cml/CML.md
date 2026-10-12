@@ -498,6 +498,57 @@ on `xhigh_po`), not the PD. `cx3` is the fallback (option 1); option 2a
 (a current reference for the CML tails) is being evaluated first
 (`../vw/bias/`).
 
+## The verified CML design (2026-10-12)
+
+Three changes on top of the original experiment, each found with a short test:
+
+| change | what | why |
+|---|---|---|
+| loop filter scaled | R 86.3 → 33.2 kΩ (L 15 → 5.7), C1 109 → 291 fF (`cap1` mult 6 → 16), C2 16 → 43.5 fF (`cap2` W 1.1 → 2.94) | gives the CML loop the frozen loop's *effective* gain on purpose (U3/S1) |
+| PD = `cml_pd_cx3w` (`../vw/cx_cells.inc`) | the 8 CML latches; Q5, Q2, B converted by three `cml2cmos_w2` (2x tail, ~36 µA); two `sky130_fd_sc_hd__xor2_1` (as `cx_xor`); no level-shifted latch | the CML XOR's level-shifted input broke at fast NMOS (U9); 18 µA converters skewed at sf/125 C (U9_cx) |
+| `cml_bias` (`../vw/bias/cml_bias.inc`) | `res_high_po` L=112 from VDD into an nfet W=0.75 L=0.5 diode, ~200 fF decap; `vbn` replaces the vbias pin on the PD and the two recovered-clock converters | B1: CML swing 0.30–0.50 V over 135 PVT points (±8 % at fixed VDD) against 0.19–0.66 V with the vbias-gate bias |
+
+**PD characteristic (U8, final cells), net charge per transition early / late,
+balance point:**
+
+| corner | early / late (Icp·UI) | balance |
+|---|---|---|
+| tt / 27 C | +1.35 / −1.52 | +0.059 UI |
+| sf / 27 C | +1.39 / −1.54 | +0.059 UI |
+| ss / 27 C | +1.38 / −1.51 | +0.059 UI |
+| sf / 125 C | +2.02 / −2.22 | +0.059 UI |
+| fs / −40 C | +0.95 / −1.04 | +0.059 UI |
+| ff / 125 C | +4.02 / −6.46 | +0.055 UI |
+
+The remaining spread in magnitude is the charge pump's current, set by
+`tiny_pll_bias_gen` (beta multiplier on `xhigh_po`; B1 scheme B ranges 28–265
+µA when scaled to 54 µA nominal), not the PD.
+
+**Closed loop at tt (S2, `../vw/decks/S2_cx_ref.spice`, near lock, 0.5–1.5 µs):**
+period RMS 25.99 ps = 1.56 % UI, sampling-phase RMS 5.43 % UI, 0 / 600
+samples < 25 mV, `vctrl` 16.4 mV RMS / 91.5 mV pp, `up`·`down` overlap 0.1 %,
+600.63 MHz. (With 18 µA converters: 26.45 ps, 5.67 % UI, 0 / 600.)
+
+| block (S2, metered) | µA |
+|---|---|
+| ring core | 570.9 |
+| PD latches (8, on `vbn`) | 462.7 |
+| output `inverter_chain` ×2 | 252.0 |
+| clock buffer `diff_amp_inv` (`vtail` 0.85 V) | 211.9 |
+| CTLE | 133.5 |
+| PD converters (3 × `cml2cmos_w2`) | 127.6 |
+| recovered-clock converters (2) | 60.0 |
+| `cml_bias` | 16.0 |
+| loop (pump, bias gen, filter, precharge) | 4.5 |
+| PD XORs (2 × `xor2_1`) | 3.6 |
+| **total** | **1842.6 µA = 3.32 mW** (frozen P0: 4856.5 µA = 8.74 mW) |
+
+**Still open for this design:** `vtail` = 0.85 V is an ideal source (the clock
+buffer needs an on-chip bias); the clock buffer and the full closed loop have
+not been run at corners (only the PD has); the cold start and CID results
+above were with the earlier PD (`cml_pd`, vbias-biased); the CTLE keeps the
+vbias pin. Nominal corner only for the closed loop.
+
 **A trap found along the way:** in C3's 0.6–1.0 µs window the loop is still
 acquiring (`vctrl` moved 0.8115 → 0.7858 V within the window in the
 `c2c_Wt=3` run). Ripple from that window mixes acquisition with dither, so
