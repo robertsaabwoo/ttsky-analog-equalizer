@@ -70,8 +70,8 @@ Verified end to end (`xschem/tuning/e2e_ctle_cdr_tb.spice`) with data driven thr
 | recovered clock swing | rail to rail (1.870 V) | §C23 |
 | CTLE eye, worst PVT corner (ss / 125 °C / 1.62 V) | 174 mV, 0.350 UI | §C22 |
 | combined channel + CTLE at Nyquist, 27 corners | −2.03 … +0.66 dB | §C18 |
-| recovered clock jitter, CDR alone on ideal data | 0.68 % UI RMS, 2.5 % UI pk-pk | §16b |
-| recovered clock jitter, full chain on PRBS7 (cycle-to-cycle) | 18.45 ps RMS = 1.11 % UI; 6.70 % UI pk-pk | §C27 |
+| recovered clock period jitter, CDR alone on ideal data | 0.68 % UI RMS, 2.5 % UI pk-pk | §16b |
+| recovered clock period jitter, full chain on PRBS7 | 18.45 ps RMS = 1.11 % UI; 6.70 % UI pk-pk | §C27 |
 | sampling-phase error vs the ideal bit grid | 199 ps RMS = 11.96 % UI; 77 % UI pk-pk | §C27 |
 | eye remaining at the sampling instant, nominal corner | mean 181 mV; 13 of 1201 samples within 25 mV of threshold | §C27 |
 | startup precharge over 45 PVT corners | 45/45 pass, release 136-167 ns | §20a |

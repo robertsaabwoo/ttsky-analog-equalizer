@@ -42,8 +42,8 @@ the two things that were *not* measured say so.
 | Charge-pump up/down match | 1.263 µA up vs 1.284 µA down (1.6 %); both-on leakage 20.6 nA → 2.0 mV per 7-UI run | §C25-E |
 | Power-up polarity independence | precharge releases at 126.49 vs 126.56 ns; both polarities converge to 0.799-0.801 V | §C25-C |
 | Input sensitivity | 200 mVpp comfortable; **100 mVpp marginal** (path stays linear — 2.00× at the input, 1.92× at the output — but the loop wanders ±40 mV) | §C25-D |
-| Cycle-to-cycle jitter, full chain on PRBS7 | **18.45 ps RMS = 1.11 % UI**; 111.5 ps pk-pk = 6.70 % UI, in a proven-settled window | §C27 |
-| Cycle-to-cycle jitter, CDR alone on ideal data | 0.68 % UI RMS, 2.5 % UI pk-pk | §16b |
+| Period jitter, full chain on PRBS7 | **18.45 ps RMS = 1.11 % UI**; 111.5 ps pk-pk = 6.70 % UI, in a proven-settled window | §C27 |
+| Period jitter, CDR alone on ideal data | 0.68 % UI RMS, 2.5 % UI pk-pk | §16b |
 | Sampling-phase error vs the ideal bit grid | 199 ps RMS = **11.96 % UI**, 77 % UI pk-pk. Detrending changes it by 0.1 %, so it is dither, not a residual frequency offset | §C27 |
 | Eye remaining at the sampling instant (nominal corner) | mean 181 mV, but **13 of 1201 samples land within 25 mV of the decision threshold** — the clock edge occasionally lands on a data transition | §C27 |
 | Startup precharge across PVT | **45/45 corners pass** from a cold supply ramp with no `.ic`: seed 0.693-0.908 V, release 136-167 ns | §20a |
@@ -81,8 +81,8 @@ one closed by noise is not.
 
 ![Histogram of recovered-clock periods, 721 cycles, PRBS7](docs/img/clock-jitter.svg)
 
-Cycle-to-cycle jitter through the whole chain on real data is **1.11 % UI RMS**
-(§C27) — about 1.6× the CDR's 0.68 % on ideal full-rail data (§16b), a
+Period jitter (the RMS spread of the clock period) through the whole chain on
+real data is **1.11 % UI RMS** (§C27) — about 1.6× the CDR's 0.68 % on ideal full-rail data (§16b), a
 reasonable price for a channel that closes the eye at the pad. The histogram
 above is the earlier §C26 run, whose window still contained settling; §C27
 re-ran it to 6 µs, proved settling inside the deck with three separated

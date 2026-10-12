@@ -1099,7 +1099,11 @@ a schematic tells you which effects exist, never how big they are.
 Ran `e2e_c26_jitter.spice` (the C25-B chain with the recovered clock dumped) and
 `jitter_parse.py`. 162 287 points, 1799 rising edges, 722 of them after 1800 ns.
 
-## Cycle-to-cycle jitter — believable, and acceptable
+## Period jitter — believable, and acceptable
+
+*(Correction 2026-10-11: this heading and the text below originally said
+"cycle-to-cycle". `jitter_parse.py` computes the RMS of the period itself, not
+the difference between adjacent periods. The numbers are unchanged.)*
 
 | | value | as % UI |
 |---|---|---|
@@ -1109,7 +1113,7 @@ Ran `e2e_c26_jitter.spice` (the C25-B chain with the recovered clock dumped) and
 | period RMS | 24.59 ps | **1.48 %** |
 | period pk-pk | 128.81 ps | **7.74 %** |
 
-1.48 % UI RMS cycle-to-cycle is a plausible degradation from §16b's 0.68 % UI
+1.48 % UI RMS period jitter is a plausible degradation from §16b's 0.68 % UI
 for the CDR alone on ideal full-rail data — roughly 2×, for real data through a
 channel that closes the eye at the pad. **This number is fine.**
 
@@ -1186,7 +1190,11 @@ moved monotonically and the "jitter" measured was partly convergence.
 Frequency over 1000 cycles inside the settled span: **600.666 MHz** against
 600.6006 Mb/s data, +0.011 %.
 
-## Cycle-to-cycle jitter — better than §C26 reported
+## Period jitter — better than §C26 reported
+
+*(Correction 2026-10-11: originally headed "cycle-to-cycle"; `c27_analyze.py`
+computes the period RMS, as the table says. True adjacent-period jitter on the
+same dump is 12.63 ps = 0.76 % UI, `../cml/edge_steps.py`, see `../cml/CML.md`.)*
 
 | | value | % UI |
 |---|---|---|
