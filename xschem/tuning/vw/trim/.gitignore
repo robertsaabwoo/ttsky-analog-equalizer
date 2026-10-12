@@ -1,0 +1,4 @@
+decks/*.log
+decks/*.partial
+*.out
+__pycache__/
