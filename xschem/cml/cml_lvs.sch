@@ -11,4 +11,7 @@ C {devices/lab_pin.sym} -140 60 0 0 {name=l4 sig_type=std_logic lab=a_clkout_p}
 C {devices/lab_pin.sym} -140 80 0 0 {name=l5 sig_type=std_logic lab=a_clkout_n}
 C {devices/lab_pin.sym} -140 100 0 0 {name=l6 sig_type=std_logic lab=a_VDPWR}
 C {devices/lab_pin.sym} -140 120 0 0 {name=l7 sig_type=std_logic lab=a_VGND}
+C {devices/lab_pin.sym} -140 140 0 0 {name=l8 sig_type=std_logic lab=a_trim0n}
+C {devices/lab_pin.sym} -140 160 0 0 {name=l9 sig_type=std_logic lab=a_trim1n}
+C {devices/lab_pin.sym} -140 180 0 0 {name=l10 sig_type=std_logic lab=a_trim2n}
 C {cml/ctle_cdr_rx_cml.sym} 0 0 0 0 {name=x1}

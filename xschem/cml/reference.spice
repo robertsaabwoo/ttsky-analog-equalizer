@@ -83,25 +83,52 @@ XNM bias_p bias_n VSS VSS sky130_fd_pr__nfet_01v8 L=1 W=1
 XPD bias_p bias_p VDD VDD sky130_fd_pr__pfet_01v8 L=1 W=2
 .ends
 
+.subckt ring_trim3 nd VDD VSS b0n b1n b2n
+XR0 nd a0 VSS sky130_fd_pr__res_xhigh_po_0p35 L=21 mult=1
+XP0 a0 b0n VDD VDD sky130_fd_pr__pfet_01v8 L=0.15 W=1 nf=1 mult=1
+XR1 nd a1 VSS sky130_fd_pr__res_xhigh_po_0p35 L=10.5 mult=1
+XP1 a1 b1n VDD VDD sky130_fd_pr__pfet_01v8 L=0.15 W=1 nf=1 mult=1
+XR2 nd a2 VSS sky130_fd_pr__res_xhigh_po_0p35 L=4.0 mult=1
+XP2 a2 b2n VDD VDD sky130_fd_pr__pfet_01v8 L=0.15 W=2 nf=1 mult=1
+.ends
+
+.subckt ring_inverter_t VDD VSS vin+ vo+ vin- vo- vctrl
+XM4 vo- vin- net1 VSS sky130_fd_pr__nfet_01v8 L=1 W=3 nf=1 ad='int((nf+1)/2) * W/nf * 0.29' as='int((nf+2)/2) * W/nf * 0.29' pd='2*int((nf+1)/2) * (W/nf + 0.29)' ps='2*int((nf+2)/2) * (W/nf + 0.29)' nrd='0.29 / W' nrs='0.29 / W' sa=0 sb=0 sd=0 mult=1
+XM5 net1 vctrl VSS VSS sky130_fd_pr__nfet_01v8 L=0.15 W=9 nf=1 ad='int((nf+1)/2) * W/nf * 0.29' as='int((nf+2)/2) * W/nf * 0.29' pd='2*int((nf+1)/2) * (W/nf + 0.29)' ps='2*int((nf+2)/2) * (W/nf + 0.29)' nrd='0.29 / W' nrs='0.29 / W' sa=0 sb=0 sd=0 mult=1
+XM1 vo+ vin+ net1 VSS sky130_fd_pr__nfet_01v8 L=1 W=3 nf=1 ad='int((nf+1)/2) * W/nf * 0.29' as='int((nf+2)/2) * W/nf * 0.29' pd='2*int((nf+1)/2) * (W/nf + 0.29)' ps='2*int((nf+2)/2) * (W/nf + 0.29)' nrd='0.29 / W' nrs='0.29 / W' sa=0 sb=0 sd=0 mult=1
+XR1 vo+ VDD VSS sky130_fd_pr__res_high_po W=1 L=20 mult=1
+XR2 vo- VDD VSS sky130_fd_pr__res_high_po W=1 L=20 mult=1
+.ends
+
 .subckt cml_loop_filter VGND VNB VPWR VPB vctl
 XMC1 VGND cap_plus VGND VNB sky130_fd_pr__nfet_01v8 L=0.6 W=4 nf=1 ad='int((nf+1)/2) * W/nf * 0.29' as='int((nf+2)/2) * W/nf * 0.29' pd='2*int((nf+1)/2) * (W/nf + 0.29)' ps='2*int((nf+2)/2) * (W/nf + 0.29)' nrd='0.29 / W' nrs='0.29 / W' sa=0 sb=0 sd=0 mult=16 m=16
 XR cap_plus vctl VNB sky130_fd_pr__res_xhigh_po_0p35 L=5.7 mult=1 m=1
 XMC2 VGND vctl VGND VNB sky130_fd_pr__nfet_01v8 L=2 W=2.94 nf=1 ad='int((nf+1)/2) * W/nf * 0.29' as='int((nf+2)/2) * W/nf * 0.29' pd='2*int((nf+1)/2) * (W/nf + 0.29)' ps='2*int((nf+2)/2) * (W/nf + 0.29)' nrd='0.29 / W' nrs='0.29 / W' sa=0 sb=0 sd=0 mult=1 m=1
 .ends
 
-.subckt ring_core Vdd Vss vctrl t7 t8
-x1 Vdd Vss t7 n1 t8 n2 vctrl ring_inverter
-x2 Vdd Vss n1 n4 n2 n3 vctrl ring_inverter
-x3 Vdd Vss n4 n5 n3 n6 vctrl ring_inverter
-x5 Vdd Vss n5 n9 n6 n10 vctrl ring_inverter
-x4 Vdd Vss n9 t7 n10 t8 vctrl ring_inverter
+.subckt ring_core Vdd Vss vctrl t7 t8 b0n b1n b2n
+x1 Vdd Vss t7 n1 t8 n2 vctrl ring_inverter_t
+x2 Vdd Vss n1 n4 n2 n3 vctrl ring_inverter_t
+x3 Vdd Vss n4 n5 n3 n6 vctrl ring_inverter_t
+x5 Vdd Vss n5 n9 n6 n10 vctrl ring_inverter_t
+x4 Vdd Vss n9 t7 n10 t8 vctrl ring_inverter_t
+xt0 t7 Vdd Vss b0n b1n b2n ring_trim3
+xt1 t8 Vdd Vss b0n b1n b2n ring_trim3
+xt2 n1 Vdd Vss b0n b1n b2n ring_trim3
+xt3 n2 Vdd Vss b0n b1n b2n ring_trim3
+xt4 n3 Vdd Vss b0n b1n b2n ring_trim3
+xt5 n4 Vdd Vss b0n b1n b2n ring_trim3
+xt6 n5 Vdd Vss b0n b1n b2n ring_trim3
+xt7 n6 Vdd Vss b0n b1n b2n ring_trim3
+xt8 n9 Vdd Vss b0n b1n b2n ring_trim3
+xt9 n10 Vdd Vss b0n b1n b2n ring_trim3
 .ends
 
-.subckt CDR_cml Vdd Vss vin+ vin- vbias rclk+ rclk-
+.subckt CDR_cml Vdd Vss vin+ vin- vbias rclk+ rclk- b0n b1n b2n
 x6 Vdd Vdd Vss Vss net1 net2 net3 bias_n bias_p tiny_pll_charge_pump
 x8 Vdd Vss bias_n bias_p cp_bias
 x2 Vss Vss Vdd Vdd net1 cml_loop_filter
-x1 Vdd Vss net1 t7 t8 ring_core
+x1 Vdd Vss net1 t7 t8 b0n b1n b2n ring_core
 x9 Vdd Vss ck ckb t7 t8 vbn cml_clkbuf
 xref Vdd Vss vbn cml_bias
 x3 Vdd Vss net3 net2 ck ckb vin+ vin- vbn cml_pd_cx3w
@@ -110,9 +137,9 @@ x12 rclk- ckb ck Vdd Vss vbn cml2cmos
 x20 Vdd Vss net1 vctrl_precharge
 .ends
 
-.subckt ctle_cdr_rx_cml vinp vinm vbias clkout_p clkout_n VDPWR VGND
+.subckt ctle_cdr_rx_cml vinp vinm vbias clkout_p clkout_n VDPWR VGND trim0n trim1n trim2n
 x1 eq_p eq_m vinp vinm VDPWR VGND vbias CTLE
-x2 VDPWR VGND eq_p eq_m vbias rclk_p rclk_m CDR_cml
+x2 VDPWR VGND eq_p eq_m vbias rclk_p rclk_m trim0n trim1n trim2n CDR_cml
 x3 VDPWR VGND rclk_p clkout_p inverter_chain
 x4 VDPWR VGND rclk_m clkout_n inverter_chain
 .ends

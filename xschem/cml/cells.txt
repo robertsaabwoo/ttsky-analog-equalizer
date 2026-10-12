@@ -7,6 +7,8 @@ cml_pd_cx3w
 cml_bias
 cml_clkbuf
 cml_loop_filter
+ring_trim3
+ring_inverter_t
 ring_core
 cp_bias
 CDR_cml

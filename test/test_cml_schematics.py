@@ -40,12 +40,26 @@ class CmlSchematics(unittest.TestCase):
         for c in self.cells:
             self.assertEqual(sym_pins(CML / f"{c}.sym"), self.ref[c], f"{c}.sym pin order")
 
-    def test_macro_ports_match_the_frozen_macro(self):
+    def test_macro_ports_are_the_frozen_macro_plus_the_trim(self):
+        # the frozen macro's ports, in order, then the ring's 3-bit coarse trim
+        # (active low; ../xschem/tuning/vw/trim/ring_trim.inc)
         frozen = sym_pins(FROZEN_TOP)
         tops = [c for c in self.cells if c.startswith("ctle_cdr_rx_cml")]
         self.assertTrue(tops, "no ctle_cdr_rx_cml* top in cells.txt")
         for c in tops:
-            self.assertEqual(self.ref[c], frozen, f"{c} ports differ from ctle_cdr_rx")
+            self.assertEqual(self.ref[c], frozen + ["trim0n", "trim1n", "trim2n"],
+                             f"{c} ports are not ctle_cdr_rx's plus trim0n..trim2n")
+
+    def test_every_ring_node_carries_one_trim_cell(self):
+        # five stages x two outputs; a node without its trim cell would make
+        # the stages unequal (duty-cycle error), a doubled one likewise
+        body = re.search(r"^\.subckt ring_core .*?^\.ends", (CML / "reference.spice").read_text(),
+                         re.M | re.S).group(0)
+        stages = re.findall(r"^x\d+ Vdd Vss (\S+) (\S+) (\S+) (\S+) vctrl ring_inverter_t$", body, re.M)
+        self.assertEqual(len(stages), 5)
+        outputs = sorted(n for s in stages for n in (s[1], s[3]))
+        trimmed = sorted(re.findall(r"^xt\d+ (\S+) Vdd Vss b0n b1n b2n ring_trim3$", body, re.M))
+        self.assertEqual(trimmed, outputs)
 
     def test_lvs_wrapper_instantiates_the_tops(self):
         text = (CML / "cml_lvs.sch").read_text()

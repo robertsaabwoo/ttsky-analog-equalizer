@@ -33,6 +33,7 @@ SOURCES = [  # (file, subckts taken from it)
     (os.path.join(TUN, "vw", "bias", "cml_bias.inc"), ["cml_bias"]),
     (os.path.join(TUN, "vw", "bias", "cml_clkbuf.inc"), ["cml_clkbuf"]),
     (os.path.join(TUN, "vw", "bias", "cp_bias.inc"), ["cp_bias"]),
+    (os.path.join(TUN, "vw", "trim", "ring_trim.inc"), ["ring_trim3", "ring_inverter_t"]),
 ]
 FROZEN_SYMS = {"CTLE", "ring_inverter", "tiny_pll_charge_pump", "tiny_pll_bias_gen",
                "vctrl_precharge", "inverter_chain"}
@@ -48,24 +49,27 @@ XMC2 VGND vctl VGND VNB sky130_fd_pr__nfet_01v8 L=2 W=2.94 nf=1 ad='int((nf+1)/2
 .ends
 """
 
-RING_CORE = """.subckt ring_core Vdd Vss vctrl t7 t8
-x1 Vdd Vss t7 n1 t8 n2 vctrl ring_inverter
-x2 Vdd Vss n1 n4 n2 n3 vctrl ring_inverter
-x3 Vdd Vss n4 n5 n3 n6 vctrl ring_inverter
-x5 Vdd Vss n5 n9 n6 n10 vctrl ring_inverter
-x4 Vdd Vss n9 t7 n10 t8 vctrl ring_inverter
-.ends
-"""
+# The five ring stages (ring_inverter_t: the frozen stage with L 23 -> 20 loads)
+# and the 3-bit coarse trim (ring_trim3) on each of the ten ring nodes;
+# b0n..b2n are active low. See ../tuning/vw/trim/ring_trim.inc.
+RING_NODES = ["t7", "t8", "n1", "n2", "n3", "n4", "n5", "n6", "n9", "n10"]
+RING_CORE = """.subckt ring_core Vdd Vss vctrl t7 t8 b0n b1n b2n
+x1 Vdd Vss t7 n1 t8 n2 vctrl ring_inverter_t
+x2 Vdd Vss n1 n4 n2 n3 vctrl ring_inverter_t
+x3 Vdd Vss n4 n5 n3 n6 vctrl ring_inverter_t
+x5 Vdd Vss n5 n9 n6 n10 vctrl ring_inverter_t
+x4 Vdd Vss n9 t7 n10 t8 vctrl ring_inverter_t
+""" + "".join(f"xt{i} {n} Vdd Vss b0n b1n b2n ring_trim3\n" for i, n in enumerate(RING_NODES)) + ".ends\n"
 
 
 def cdr(name, pump_bias):
     bias = ("x8 Vdd Vss bias_n bias_p cp_bias" if pump_bias == "cp_bias"
             else "x8 Vss Vss Vdd Vdd bias_n Vdd Vss bias_p tiny_pll_bias_gen")
-    return f""".subckt {name} Vdd Vss vin+ vin- vbias rclk+ rclk-
+    return f""".subckt {name} Vdd Vss vin+ vin- vbias rclk+ rclk- b0n b1n b2n
 x6 Vdd Vdd Vss Vss net1 net2 net3 bias_n bias_p tiny_pll_charge_pump
 {bias}
 x2 Vss Vss Vdd Vdd net1 cml_loop_filter
-x1 Vdd Vss net1 t7 t8 ring_core
+x1 Vdd Vss net1 t7 t8 b0n b1n b2n ring_core
 x9 Vdd Vss ck ckb t7 t8 vbn cml_clkbuf
 xref Vdd Vss vbn cml_bias
 x3 Vdd Vss net3 net2 ck ckb vin+ vin- vbn cml_pd_cx3w
@@ -77,9 +81,9 @@ x20 Vdd Vss net1 vctrl_precharge
 
 
 def top(name, cdr_name):
-    return f""".subckt {name} vinp vinm vbias clkout_p clkout_n VDPWR VGND
+    return f""".subckt {name} vinp vinm vbias clkout_p clkout_n VDPWR VGND trim0n trim1n trim2n
 x1 eq_p eq_m vinp vinm VDPWR VGND vbias CTLE
-x2 VDPWR VGND eq_p eq_m vbias rclk_p rclk_m {cdr_name}
+x2 VDPWR VGND eq_p eq_m vbias rclk_p rclk_m trim0n trim1n trim2n {cdr_name}
 x3 VDPWR VGND rclk_p clkout_p inverter_chain
 x4 VDPWR VGND rclk_m clkout_n inverter_chain
 .ends
@@ -282,7 +286,7 @@ if __name__ == "__main__":
     ref = build_reference(opts)
     SUBPORTS.update(frozen_ports())
     order = ["cml_latch", "cml_dff", "cml2cmos", "cml2cmos_w2", "cx_xor", "cml_pd_cx3w", "cml_bias",
-             "cml_clkbuf", "cml_loop_filter", "ring_core"]
+             "cml_clkbuf", "cml_loop_filter", "ring_trim3", "ring_inverter_t", "ring_core"]
     if "A" in opts:
         order += ["cp_bias", "CDR_cml", "ctle_cdr_rx_cml"]
     if "B" in opts:
