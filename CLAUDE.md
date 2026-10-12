@@ -70,6 +70,9 @@ cannot be combined through the stock `.lib` sections.
 | `xschem/tuning/HANDOFF.md` | current state + open items. Start here. |
 | `xschem/tuning/pvt/` | PVT harness (`gen_pvt.py`, `run_pvt.sh`, `collect_pvt.py`) |
 | `xschem/tuning/safe_ngspice.sh` | the resource guard. Use it. |
+| `xschem/tuning/power/` | per-cell power analysis of the frozen macro at tt (`POWER.md`, rerun with `run_power.sh`) |
+| `xschem/tuning/cml/`, `xschem/tuning/vw/` | the low-power CML study: `cml/CML.md` is its log; `vw/` holds its unit benches (`U*`, `B*`), closed-loop decks (`S*`, `CID*`) and the closed-loop PVT suite (`vw/suite/`) |
+| `xschem/cml/` | **the low-power CML receiver**: generated schematics (`gen_cml_sch.py`), netgen-verified against the simulated netlists (`verify.sh`) |
 | `xschem/ctle_cdr_rx.sch` | **the analog macro that gets laid out** (CTLE → CDR → output buffers) |
 | `xschem/ctle_cdr_rx_lvs.sch` | one-instance wrapper; netlist THIS to get a `.subckt` for netgen |
 | `mag/LAYOUT_HANDOFF.md` | **start here for layout work** |
