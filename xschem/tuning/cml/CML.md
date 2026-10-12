@@ -454,6 +454,34 @@ is lock from the nominal seed, not pull-in from far away.
 From 3 µs (1802 edges): 27.49 ps period RMS, 5.49 % UI sampling phase,
 0 / 1802 samples < 25 mV.
 
+**CID (2026-10-12): the scaled filter holds lock through runs of up to 30
+identical bits.** `../vw/gen_cid.py`: PRBS7 with runs of 5, 10, 15, 20 and 30
+identical bits, each followed by 100 PRBS bits; full chain, started near lock,
+1.55 µs (~6 min). `../vw/cid_analyze.py`: phase vs the ideal bit grid
+relative to the pre-run median.
+
+| run | scaled filter: peak excursion / recovery / slip / worst eye | old filter: same |
+|---|---|---|
+| 5 | 11.7 % UI / 1 bit / no / 121 mV | 52.0 % UI / 11 bits / no / 1 mV |
+| 10 | 12.9 % UI / 1 bit / no / 80 mV | 42.0 % UI / 2 bits / no / 3 mV |
+| 15 | 44.6 % UI / 30 bits / no / 5 mV | 125 % UI / >100 / **slip** / 22 mV |
+| 20 | 28.9 % UI / 3 bits / no / 93 mV | 18.5 % UI / >100 / **slip** / 60 mV |
+| 30 | 40.7 % UI / 16 bits / no / 5 mV | 22.6 % UI / >100 / **slip** / 60 mV |
+| pre-run phase RMS | 3.71 % UI | 9.68 % UI |
+
+8b/10b allows runs of at most 5 and PRBS7 at most 7; at 5 and 10 the scaled
+filter's worst eye is 121 / 80 mV.
+
+**Corners (U7/U8/U9, 2026-10-12): the CML PD is one-sided at fast-NMOS hot/
+typical corners.** At sf/27C, sf/125C and ff/125C, an early clock gives ~0 net
+charge (up and down both fire) where tt gives +1.4 Icp·UI; late clocks still
+correct. U9 (internals, sf vs tt at −0.05 UI): the latch tails, biased by
+applying `vbias` straight to a gate, carry more current at fast NMOS; swings
+grow (q5 0.45 → 0.59 V) and the level-shifted edge sample B falls to
+0.658–1.268 V (tt 0.955–1.417), which starves the CML XOR's lower pair; for
+half of some UIs both XORs output the inverse answer. Candidate fix: the `cx3`
+variant (static-CMOS XORs, no level-shifted latch), sweep queued.
+
 **A trap found along the way:** in C3's 0.6–1.0 µs window the loop is still
 acquiring (`vctrl` moved 0.8115 → 0.7858 V within the window in the
 `c2c_Wt=3` run). Ripple from that window mixes acquisition with dither, so
