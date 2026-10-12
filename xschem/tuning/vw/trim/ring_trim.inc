@@ -27,7 +27,12 @@ XNs1 c1 s1 VSS VSS sky130_fd_pr__nfet_01v8 L=0.15 W=1 nf=1 mult=1
 * ~11 % steps, coarser than the ~6 % window the seed can pull in from.
 * So: three binary-weighted fast legs, no caps, active-low pMOS switches.
 .subckt ring_trim3 nd VDD VSS b0n b1n b2n
-.param l0=21 l1=10.5 l2=5.25
+* XRB: always-on leg. The idle legs' own capacitance slows the ring ~18 % with
+* every bit off (R1T, tt: 608 -> 497 MHz at vctrl 0.79), so the whole code
+* range sits too slow; this shifts it back up so code 0 is ~0.88x the
+* untrimmed ring (slow enough for tt_ll / -40 C) and code 7 reaches 125 C.
+.param l0=21 l1=10.5 l2=5.25 lb=15.6
+XRB nd VDD VSS sky130_fd_pr__res_xhigh_po_0p35 L=lb mult=1
 XR0 nd a0 VSS sky130_fd_pr__res_xhigh_po_0p35 L=l0 mult=1
 XP0 a0 b0n VDD VDD sky130_fd_pr__pfet_01v8 L=0.15 W=1 nf=1 mult=1
 XR1 nd a1 VSS sky130_fd_pr__res_xhigh_po_0p35 L=l1 mult=1
