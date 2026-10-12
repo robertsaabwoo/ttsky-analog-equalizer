@@ -13,11 +13,11 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from gen_r1t import NODES, STATES, SUITE  # noqa: E402
+from gen_r1t import NODES, STATES, SUITE, trimmed_ring  # noqa: E402
 
 
 def deck(corner, state):
-    s = open(os.path.join(SUITE, corner + ".spice")).read()
+    s = trimmed_ring(open(os.path.join(SUITE, corner + ".spice")).read())
     vdd = float([l for l in s.splitlines() if l.startswith("Vtie ")][0].split()[3])
     bits = STATES[state]
     add = [f"* C1T trim state {state}",

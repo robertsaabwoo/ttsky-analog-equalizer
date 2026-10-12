@@ -10,6 +10,7 @@ Option-5 question: is there, at every corner, a trim state that puts
 600.6 MHz near the precharge seed (0.79 V), on the rising part of f(vctrl)?
 """
 import os
+import re
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -23,10 +24,17 @@ STATES = {f"c{k}": tuple((k >> b) & 1 for b in range(3)) for k in range(8)}
 VCTRL = [0.75, 0.79]
 
 
+def trimmed_ring(s):
+    """Point the five ring stages at ring_inverter_t (shorter load, ring_trim.inc)."""
+    s, n = re.subn(r"^(x2_x1_x\d+ .*) ring_inverter$", r"\1 ring_inverter_t", s, flags=re.M)
+    assert n == 5, n
+    return s
+
+
 def deck(src):
     gen_r1.VCTRL = []                  # take gen_r1's netlist, write our own control
     s = gen_r1.deck("cml_full", src)
-    s = s[:s.index(".control")]
+    s = trimmed_ring(s[:s.index(".control")])
     vdd = float([l for l in s.splitlines() if l.startswith("Vtie ")][0].split()[3])
     out = [s.rstrip(), f".include {os.path.join(HERE, 'ring_trim.inc')}",
            "Vb0n b0n 0 0", "Vb1n b1n 0 0", "Vb2n b2n 0 0"]

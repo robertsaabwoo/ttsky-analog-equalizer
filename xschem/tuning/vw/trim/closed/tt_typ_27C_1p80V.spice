@@ -97,11 +97,11 @@ x1 eq_p eq_m cinp cinm vdd_x1 0 vbias CTLE
 x2_x6 vdd_x2_x6 vdd_x2_x6 0 0 x2_net1 x2_net2 x2_net3 x2_bias_n x2_bias_p tiny_pll_charge_pump
 x2_x8 vdd_x2_x8 0 x2_bias_n x2_bias_p cp_bias
 x2_x2 0 0 vdd_x2_x2 vdd_x2_x2 x2_net1 tiny_pll_loop_filter
-x2_x1_x1 vdd_x2_x1_x1 0 x2_t7 x2_x1_n1 x2_t8 x2_x1_n2 x2_net1 ring_inverter
-x2_x1_x2 vdd_x2_x1_x2 0 x2_x1_n1 x2_x1_n4 x2_x1_n2 x2_x1_n3 x2_net1 ring_inverter
-x2_x1_x3 vdd_x2_x1_x3 0 x2_x1_n4 x2_x1_n5 x2_x1_n3 x2_x1_n6 x2_net1 ring_inverter
-x2_x1_x5 vdd_x2_x1_x5 0 x2_x1_n5 x2_x1_n9 x2_x1_n6 x2_x1_n10 x2_net1 ring_inverter
-x2_x1_x4 vdd_x2_x1_x4 0 x2_x1_n9 x2_t7 x2_x1_n10 x2_t8 x2_net1 ring_inverter
+x2_x1_x1 vdd_x2_x1_x1 0 x2_t7 x2_x1_n1 x2_t8 x2_x1_n2 x2_net1 ring_inverter_t
+x2_x1_x2 vdd_x2_x1_x2 0 x2_x1_n1 x2_x1_n4 x2_x1_n2 x2_x1_n3 x2_net1 ring_inverter_t
+x2_x1_x3 vdd_x2_x1_x3 0 x2_x1_n4 x2_x1_n5 x2_x1_n3 x2_x1_n6 x2_net1 ring_inverter_t
+x2_x1_x5 vdd_x2_x1_x5 0 x2_x1_n5 x2_x1_n9 x2_x1_n6 x2_x1_n10 x2_net1 ring_inverter_t
+x2_x1_x4 vdd_x2_x1_x4 0 x2_x1_n9 x2_t7 x2_x1_n10 x2_t8 x2_net1 ring_inverter_t
 x2_x9 vdd_x2_x9 0 x2_ck x2_ckb x2_t7 x2_t8 x2_vbn cml_clkbuf
 x2_xref vdd_x2_xref 0 x2_vbn cml_bias
 x2_x3_x5_xm x2_x3_x5_m x2_x3_x5_mb eq_p eq_m vdd_x2_x3_x5_xm 0 x2_ckb x2_ck x2_vbn cml_latch

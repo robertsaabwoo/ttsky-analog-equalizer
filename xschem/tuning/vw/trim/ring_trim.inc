@@ -27,16 +27,28 @@ XNs1 c1 s1 VSS VSS sky130_fd_pr__nfet_01v8 L=0.15 W=1 nf=1 mult=1
 * ~11 % steps, coarser than the ~6 % window the seed can pull in from.
 * So: three binary-weighted fast legs, no caps, active-low pMOS switches.
 .subckt ring_trim3 nd VDD VSS b0n b1n b2n
-* XRB: always-on leg. The idle legs' own capacitance slows the ring ~18 % with
-* every bit off (R1T, tt: 608 -> 497 MHz at vctrl 0.79), so the whole code
-* range sits too slow; this shifts it back up so code 0 is ~0.88x the
-* untrimmed ring (slow enough for tt_ll / -40 C) and code 7 reaches 125 C.
-.param l0=21 l1=10.5 l2=5.25 lb=15.6
-XRB nd VDD VSS sky130_fd_pr__res_xhigh_po_0p35 L=lb mult=1
+* The idle legs' own capacitance slows the ring ~17 % with every bit off
+* (R1T, tt: 608 -> 503 MHz at vctrl 0.79). An always-on 90 k xhigh_po leg to
+* shift the range back up bought only ~1 %: a leg's capacitance grows with its
+* length, so a high-value leg costs about as much delay as it saves. Instead
+* the ring's own load is shortened (ring_inverter_t below, L 23 -> 20).
+* l2 4.0 (was 5.25): bit 2 was ~1 LSB weak (c3 582 vs c4 587 MHz at tt).
+.param l0=21 l1=10.5 l2=4.0
 XR0 nd a0 VSS sky130_fd_pr__res_xhigh_po_0p35 L=l0 mult=1
 XP0 a0 b0n VDD VDD sky130_fd_pr__pfet_01v8 L=0.15 W=1 nf=1 mult=1
 XR1 nd a1 VSS sky130_fd_pr__res_xhigh_po_0p35 L=l1 mult=1
 XP1 a1 b1n VDD VDD sky130_fd_pr__pfet_01v8 L=0.15 W=1 nf=1 mult=1
 XR2 nd a2 VSS sky130_fd_pr__res_xhigh_po_0p35 L=l2 mult=1
 XP2 a2 b2n VDD VDD sky130_fd_pr__pfet_01v8 L=0.15 W=2 nf=1 mult=1
+.ends
+
+* ring_inverter_t: ring_inverter (frozen_scaled.inc) with the load length a
+* parameter; the trimmed ring uses it. Only R1/R2 differ.
+.subckt ring_inverter_t VDD VSS vin+ vo+ vin- vo- vctrl
+.param rload=20
+XM4 vo- vin- net1 VSS sky130_fd_pr__nfet_01v8 L=1 W=3 nf=1 ad='int((nf+1)/2) * W/nf * 0.29' as='int((nf+2)/2) * W/nf * 0.29' pd='2*int((nf+1)/2) * (W/nf + 0.29)' ps='2*int((nf+2)/2) * (W/nf + 0.29)' nrd='0.29 / W' nrs='0.29 / W' sa=0 sb=0 sd=0 mult=1
+XM5 net1 vctrl VSS VSS sky130_fd_pr__nfet_01v8 L=0.15 W=9 nf=1 ad='int((nf+1)/2) * W/nf * 0.29' as='int((nf+2)/2) * W/nf * 0.29' pd='2*int((nf+1)/2) * (W/nf + 0.29)' ps='2*int((nf+2)/2) * (W/nf + 0.29)' nrd='0.29 / W' nrs='0.29 / W' sa=0 sb=0 sd=0 mult=1
+XM1 vo+ vin+ net1 VSS sky130_fd_pr__nfet_01v8 L=1 W=3 nf=1 ad='int((nf+1)/2) * W/nf * 0.29' as='int((nf+2)/2) * W/nf * 0.29' pd='2*int((nf+1)/2) * (W/nf + 0.29)' ps='2*int((nf+2)/2) * (W/nf + 0.29)' nrd='0.29 / W' nrs='0.29 / W' sa=0 sb=0 sd=0 mult=1
+XR1 vo+ VDD VSS sky130_fd_pr__res_high_po W=1 L=rload mult=1
+XR2 vo- VDD VSS sky130_fd_pr__res_high_po W=1 L=rload mult=1
 .ends
