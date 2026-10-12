@@ -549,6 +549,46 @@ not been run at corners (only the PD has); the cold start and CID results
 above were with the earlier PD (`cml_pd`, vbias-biased); the CTLE keeps the
 vbias pin. Nominal corner only for the closed loop.
 
+## The clock buffer and the pump bias on references too (2026-10-12)
+
+**`cml_clkbuf`** (`../vw/bias/cml_clkbuf.inc`): the frozen `diff_amp_inv` with
+both tails at L=0.5 on `vbn` (stage 1 W=0.96, stage 2 W=8.9 nf=2: 17.3 / 190.9
+µA, B3b), replacing the ideal `vtail` = 0.85 V source. B4 (ring + buffer + PD
++ clock converters, `vctrl` = 0.79 V, per corner):
+
+| corner | old buffer: clock pp at PD / recovered clock pp | `cml_clkbuf`: same | `cml_clkbuf` current |
+|---|---|---|---|
+| tt / 27 C | 0.784 / 1.87 V | 0.779 / 1.87 V | 208.5 µA |
+| ss / 27 C | 0.461 / 1.87 V | 0.795 / 1.92 V | 241.6 µA |
+| sf / 27 C | 0.145 / 1.84 V | 0.713 / 1.86 V | 172.9 µA |
+| fs / −40 C | 0.214 / 1.84 V | 0.934 / 1.88 V | 256.7 µA |
+| sf / 125 C | 0.091 / **0** V | 0.632 / 1.84 V | 166.3 µA |
+| ff / 125 C | 0.117 / **0** V | 0.644 / 1.83 V | 171.8 µA |
+
+The weakened buffer on an ideal gate voltage lost the clock entirely at
+sf/125 C and ff/125 C; on `cml_bias` it gives 0.63–0.93 V everywhere.
+
+**`cp_bias`** (`../vw/bias/cp_bias.inc`): an `xhigh_po` resistor reference for
+the pump's `bias_n`/`bias_p`, the pump itself unchanged. B2, 135 PVT points:
+pump current 0.76–1.87 µA (2.5x) against 0.71–9.63 µA (13.6x) from
+`tiny_pll_bias_gen`; Icp x R_filter 30–51 mV (1.7x) against 28–302 mV (10.9x);
+worst up/down mismatch 14 % against 68 %.
+
+**Closed loop at tt, 0.5–3 µs (`../vw/decks/*3u.spice`, near lock):**
+
+| design | sampling-phase RMS | period RMS | < 25 mV |
+|---|---|---|---|
+| S2: cx3w PD + `cml_bias` + scaled filter (ideal `vtail`) | 4.93 % UI | 1.53 % UI | 0 / 1501 |
+| + `cml_clkbuf` (**option B**) | 5.25 % UI | 1.55 % UI | 0 / 1501 |
+| + `cp_bias` only | 5.82 % UI | 1.57 % UI | 0 / 1501 |
+| + both (**option A**) | 7.08 % UI | 1.64 % UI | 1 / 1501 |
+
+A 1 µs window had read the single-change runs at 5.0–5.9 % and option A at
+7.6 %; the 3 µs runs agree. Each reference costs a little sampling margin at
+tt and the pair costs slightly more than the sum; both options stay well
+inside the frozen design's 11.96 %. Option A is designed for the corners, B is
+better at tt: the closed-loop PVT suite (`../vw/suite/`) decides.
+
 **A trap found along the way:** in C3's 0.6–1.0 µs window the loop is still
 acquiring (`vctrl` moved 0.8115 → 0.7858 V within the window in the
 `c2c_Wt=3` run). Ripple from that window mixes acquisition with dither, so
