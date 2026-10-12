@@ -126,9 +126,12 @@ x4 vdd_x4 0 rclk_m clkout_n inverter_chain
 * C1T trim state c3
 .include /home/ttuser/ssh_analog/ttsky-analog-equalizer/xschem/tuning/vw/trim/ring_trim.inc
 Vtrim vdd_trim 0 1.8
-Vb0n b0n 0 0
-Vb1n b1n 0 0
-Vb2n b2n 0 1.8
+Vb0n b0n_s 0 0
+Vb1n b1n_s 0 0
+Vb2n b2n_s 0 1.8
+Rb0n b0n_s b0n 1k
+Rb1n b1n_s b1n 1k
+Rb2n b2n_s b2n 1k
 Xtr0 x2_t7 vdd_trim 0 b0n b1n b2n ring_trim3
 Xtr1 x2_t8 vdd_trim 0 b0n b1n b2n ring_trim3
 Xtr2 x2_x1_n1 vdd_trim 0 b0n b1n b2n ring_trim3

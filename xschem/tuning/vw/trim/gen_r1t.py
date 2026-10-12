@@ -37,7 +37,9 @@ def deck(src):
     s = trimmed_ring(s[:s.index(".control")])
     vdd = float([l for l in s.splitlines() if l.startswith("Vtie ")][0].split()[3])
     out = [s.rstrip(), f".include {os.path.join(HERE, 'ring_trim.inc')}",
-           "Vb0n b0n 0 0", "Vb1n b1n 0 0", "Vb2n b2n 0 0"]
+           "Vb0n b0n_s 0 0", "Vb1n b1n_s 0 0", "Vb2n b2n_s 0 0",
+           # 1 k like a pad: ideal gate sources aborted ngspice ("vb2n#branch") at 125 C
+           "Rb0n b0n_s b0n 1k", "Rb1n b1n_s b1n 1k", "Rb2n b2n_s b2n 1k"]
     out += [f"Xtr{i} {n} vdd_trim 0 b0n b1n b2n ring_trim3" for i, n in enumerate(NODES)]
     out += [f"Vtrim vdd_trim 0 {vdd}", ".control", "  save v(x2_t7) v(x2_t8)"]
     for st, bits in STATES.items():

@@ -23,7 +23,8 @@ def deck(corner, state):
     add = [f"* C1T trim state {state}",
            f".include {os.path.join(HERE, 'ring_trim.inc')}",
            f"Vtrim vdd_trim 0 {vdd}",
-           *[f"Vb{b}n b{b}n 0 {0 if on else vdd}" for b, on in enumerate(bits)]]
+           *[f"Vb{b}n b{b}n_s 0 {0 if on else vdd}" for b, on in enumerate(bits)],
+           *[f"Rb{b}n b{b}n_s b{b}n 1k" for b in range(3)]]
     add += [f"Xtr{i} {n} vdd_trim 0 b0n b1n b2n ring_trim3" for i, n in enumerate(NODES)]
     i = s.index(".control")
     return s[:i] + "\n".join(add) + "\n" + s[i:]
