@@ -41,7 +41,7 @@ def bits_and_layout():
     return bits, layout
 
 
-def main():
+def main(base="S1_scaled", out="CID_scaled"):
     bits, layout = bits_and_layout()
     pts = [(0.0, bits[0])]
     for n in range(1, len(bits)):
@@ -56,17 +56,19 @@ def main():
         fh.write("+ )\n")
     with open(os.path.join(HERE, "cid_layout.txt"), "w") as fh:
         fh.writelines(f"{start} {length}\n" for start, length in layout)
-    deck = open(os.path.join(HERE, "decks", "S1_scaled.spice")).read()
+    deck = open(os.path.join(HERE, "decks", f"{base}.spice")).read()
     prbs = os.path.join(os.path.dirname(HERE), "e2e_prbs6u.inc")
     assert prbs in deck and "tran 20p 1500n" in deck
     deck = deck.replace(prbs, os.path.join(HERE, "cid_stim.inc"))
     deck = deck.replace("tran 20p 1500n", f"tran 20p {len(bits) * UI * 1e9:.0f}n")
-    deck = deck.replace("S1_scaled", "CID_scaled")
-    deck = deck.replace("* S1 (scaled", "* CID (scaled", 1)
-    with open(os.path.join(HERE, "decks", "CID_scaled.spice"), "w") as fh:
+    deck = deck.replace(f"{base}_chain.raw", f"{out}_chain.raw").replace(f"{base}.dat", f"{out}.dat")
+    deck = "* CID stress (gen_cid.py) on " + base + "\n" + deck
+    assert f"{out}.dat" in deck
+    with open(os.path.join(HERE, "decks", f"{out}.spice"), "w") as fh:
         fh.write(deck)
     print(f"{len(bits)} bits = {len(bits) * UI * 1e9:.0f} ns; runs at bit {layout}")
 
 
 if __name__ == "__main__":
-    main()
+    # the final designs: python3 gen_cid.py S3_full CID_full ; python3 gen_cid.py S3_buf CID_buf
+    main(*sys.argv[1:3]) if len(sys.argv) > 2 else main()
