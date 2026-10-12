@@ -31,6 +31,11 @@ x3 b bb q1 q1b VDD VSS ck ckb vbias cml_dff
 xc5 a5 q5 q5b VDD VSS vbias cml2cmos
 xc2 a2 q2 q2b VDD VSS vbias cml2cmos
 xcb bp b bb VDD VSS vbias cml2cmos
-x6 a5 bp VSS VSS VDD VDD down sky130_fd_sc_hd__xor2_1
-x7 a2 bp VSS VSS VDD VDD up sky130_fd_sc_hd__xor2_1
+x6 a5 bp down VDD VSS cx_xor
+x7 a2 bp up VDD VSS cx_xor
+.ends
+
+* one standard-cell XOR as a leaf cell, so the chain flattener meters it
+.subckt cx_xor A B X VDD VSS
+x0 A B VSS VSS VDD VDD X sky130_fd_sc_hd__xor2_1
 .ends
