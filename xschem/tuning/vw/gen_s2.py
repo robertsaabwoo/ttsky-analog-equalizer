@@ -4,7 +4,7 @@
     gen_s2.py        # writes decks/S2_cx_ref.spice (S1-style: near lock, 1.5 us)
 
 Topology = gen_cml's CDR_cml_dai with:
-  * x3 = cml_pd_cx3 (cx_cells.inc: CML latches, static-CMOS XORs, no
+  * x3 = cml_pd_cx3w (cx_cells.inc: CML latches, 2x-tail converters, static-CMOS XORs, no
     level-shifted latch) instead of cml_pd;
   * a cml_bias cell (bias/cml_bias.inc) making vbn, which feeds the PD and the
     two recovered-clock cml2cmos converters instead of the vbias pin (the CTLE
@@ -34,7 +34,7 @@ def topology():
     old_pd = "x3 Vdd Vss net3 net2 ck ckb vin+ vin- vbias cml_pd"
     assert old_pd in t
     t = t.replace(old_pd, "xref Vdd Vss vbn cml_bias\n"
-                          "x3 Vdd Vss net3 net2 ck ckb vin+ vin- vbn cml_pd_cx3")
+                          "x3 Vdd Vss net3 net2 ck ckb vin+ vin- vbn cml_pd_cx3w")
     for conv in ("x11 rclk+ ck ckb Vdd Vss vbias cml2cmos", "x12 rclk- ckb ck Vdd Vss vbias cml2cmos"):
         assert conv in t
         t = t.replace(conv, conv.replace(" vbias ", " vbn "))
@@ -49,7 +49,7 @@ def main():
     for p in (os.path.join(gc.NETDIR, "cml_cells.inc"), os.path.join(HERE, "cx_cells.inc"),
               os.path.join(HERE, "bias", "cml_bias.inc"), TOPO):
         subs.update(gp.parse(p))
-    gp.EXPAND.update({"cml_pd_cx3"})
+    gp.EXPAND.update({"cml_pd_cx3w"})
     text, ndev = gc.deck_chain(subs, "cx", 0.85, tstop=1500)
     # includes: our cells, the scaled filter in place of the frozen one
     frozen = f".include {gc.NETDIR}/frozen.inc"
