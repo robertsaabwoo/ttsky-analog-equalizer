@@ -1,0 +1,19 @@
+* B0: size the reference resistor -- C: res_high_po_0p69 from VDD into an nfet W=3 L=0.5 diode
+.lib /home/ttuser/pdk/sky130A/libs.tech/ngspice/sky130.lib.spice tt
+Vdd vdd 0 1.8
+Vda da 0 0.4
+XA da vbias 0 0 sky130_fd_pr__nfet_01v8 W=3 L=0.5
+Vb vbias 0 0.9
+XR1 g1 vdd 0 sky130_fd_pr__res_high_po_0p69 L=40
+XD1 g1 g1 0 0 sky130_fd_pr__nfet_01v8 W=3 L=0.5
+XR2 g2 vdd 0 sky130_fd_pr__res_high_po_0p69 L=55
+XD2 g2 g2 0 0 sky130_fd_pr__nfet_01v8 W=3 L=0.5
+XR3 g3 vdd 0 sky130_fd_pr__res_high_po_0p69 L=70
+XD3 g3 g3 0 0 sky130_fd_pr__nfet_01v8 W=3 L=0.5
+.control
+  op
+  let ia = -i(Vda)*1e6
+  let i1 = (1.8-v(g1))/1
+  print ia v(g1) v(g2) v(g3)
+.endc
+.end
