@@ -12,6 +12,8 @@ test/gate_level_netlist.v
 
 # --- simulation outputs & data dumps (regenerable from sources; kept out per CLAUDE.md VM rules) ---
 *.raw
+*.raw.gz
+*.dat.gz
 # ...but the tiny synthetic clock the test suite calibrates jitter_parse.py
 # against is a committed fixture, not a simulation output.
 !test/fixtures/*.raw
