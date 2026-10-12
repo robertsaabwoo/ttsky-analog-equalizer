@@ -92,7 +92,8 @@ Vx3 vdd_x3 0 1.98
 Vx4 vdd_x4 0 1.98
 * VDPWR used as a logic tie (bias_gen en, diff_amp_inv vctrl) -- not a supply
 Vtie vtie 0 1.98
-Vb  vbias 0 0.9
+Vb  vbias_src 0 0.9
+Rb  vbias_src vbias 10
 Edinp dinp 0 vol='vcm + 0.5*amp*(v(dsrc)-0.5)'
 Edinm dinm 0 vol='vcm - 0.5*amp*(v(dsrc)-0.5)'
 Rpadp dinp cinp 'rpad'
