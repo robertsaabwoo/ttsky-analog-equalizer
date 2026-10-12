@@ -10,23 +10,29 @@ Per corner (from <corner>.dat, <corner>_chain.raw, <corner>.log):
   LOCK    |f - 600.6| < 0.5 MHz and vctrl settled within 15 mV over 2-2.9 us
   period / phase RMS and samples < 25 mV, over 2-3 us (../../c27_analyze.py)
   I       total metered supply current over the last 400 ns
-Rows for corners that did not run say so. Pure stdlib (../../../../CLAUDE.md).
+Rows for corners that did not run say so. Reads .dat/.raw or their .gz. Pure stdlib (../../../../CLAUDE.md).
 """
 import bisect
+import gzip
 import glob
 import os
 import re
 import subprocess
 import sys
+import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 C27 = os.path.join(HERE, "..", "..", "c27_analyze.py")
 UI = 1.665e-9
 
 
+def opn(path):
+    return gzip.open(path, "rt") if path.endswith(".gz") else open(path)
+
+
 def vavgs(dat):
     t, v = [], []
-    with open(dat) as f:
+    with opn(dat) as f:
         for line in f:
             p = line.split()
             if len(p) >= 2:
@@ -42,7 +48,7 @@ def vavgs(dat):
 
 def freq(raw):
     t, c, n, mode, cur = [], [], None, None, []
-    with open(raw) as f:
+    with opn(raw) as f:
         for line in f:
             s = line.strip()
             if s.startswith("No. Variables:"):
@@ -60,7 +66,16 @@ def freq(raw):
 
 
 def c27(raw):
+    tmp = None
+    if raw.endswith(".gz"):
+        tmp = tempfile.NamedTemporaryFile("w", suffix=".raw", dir="/dev/shm", delete=False)
+        with gzip.open(raw, "rt") as f:
+            tmp.writelines(f)
+        tmp.close()
+        raw = tmp.name
     out = subprocess.run([sys.executable, C27, raw, "1.665", "2000"], capture_output=True, text=True).stdout
+    if tmp:
+        os.unlink(tmp.name)
     g = lambda pat: (re.search(pat, out) or [None, "nan"])[1]
     return (g(r"period RMS\s*:\s*[\d.]+ ps = ([\d.]+) % UI"), g(r"phase RMS\s*:\s*[\d.]+ ps = ([\d.]+) % UI"),
             g(r"samples < 25 mV: (\d+ of \d+)"))
@@ -81,6 +96,7 @@ for d in sys.argv[1:]:
     for deck in sorted(glob.glob(os.path.join(d, "*.spice"))):
         tg = os.path.basename(deck)[:-6]
         dat, raw, log = (os.path.join(d, tg + x) for x in (".dat", "_chain.raw", ".log"))
+        dat, raw = (p + ".gz" if not os.path.exists(p) and os.path.exists(p + ".gz") else p for p in (dat, raw))
         if not (os.path.exists(dat) and os.path.exists(raw)):
             st = open(log).read().strip().splitlines()[-1] if os.path.exists(log) else "not run"
             print(f"{tg:20s} -- no data ({st})")
