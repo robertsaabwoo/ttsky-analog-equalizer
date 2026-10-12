@@ -1,0 +1,14 @@
+* B3b: cml_clkbuf on cml_bias -- do the tails carry 17.2 / 194 uA at tt/27C?
+.lib /home/ttuser/pdk/sky130A/libs.tech/ngspice/sky130.lib.spice tt
+.include /home/ttuser/ssh_analog/ttsky-analog-equalizer/xschem/tuning/vw/bias/cml_bias.inc
+.include /home/ttuser/ssh_analog/ttsky-analog-equalizer/xschem/tuning/vw/bias/cml_clkbuf.inc
+Vdd vdd 0 1.8
+Vip vip 0 1.4
+Vim vim 0 1.4
+xr vdd 0 vbn cml_bias
+xb vdd 0 om op vim vip vbn cml_clkbuf
+.control
+  op
+  print v(vbn) @m.xb.xm3.msky130_fd_pr__nfet_01v8[id] @m.xb.xm4.msky130_fd_pr__nfet_01v8[id] v(om)
+.endc
+.end

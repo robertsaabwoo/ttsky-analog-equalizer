@@ -1,0 +1,56 @@
+* B1 (fs, rc=hh): tail-bias schemes vs PVT (gen_b1.py)
+* corner: mos=fs rc=hh temp=27C
+.param mc_mm_switch=0
+.param mc_pr_switch=0
+.include "/home/ttuser/pdk/sky130A/libs.tech/ngspice/corners/fs.spice"
+.include "/home/ttuser/pdk/sky130A/libs.tech/ngspice/r+c/res_high__cap_high.spice"
+.include "/home/ttuser/pdk/sky130A/libs.tech/ngspice/r+c/res_high__cap_high__lin.spice"
+.include "/home/ttuser/pdk/sky130A/libs.tech/ngspice/corners/fs/specialized_cells.spice"
+.temp 27
+
+.include /home/ttuser/ssh_analog/ttsky-analog-equalizer/xschem/tuning/cml/.netlists/frozen.inc
+Vdd vdd 0 1.8
+Vb vbias 0 0.9
+* A: today's tail, gate on vbias
+Vda da 0 0.4
+XA da vbias 0 0 sky130_fd_pr__nfet_01v8 W=3 L=0.5
+* B: tiny_pll_bias_gen, and a copy of the pump's current source
+xbg 0 0 vdd vdd bn vdd 0 bp tiny_pll_bias_gen
+Vdb db 0 0.4
+XB db bn 0 0 sky130_fd_pr__nfet_01v8 W=1 L=1
+* C: res_high_po reference into a diode, mirrored 1:1
+XRr gc vdd 0 sky130_fd_pr__res_high_po_0p69 L=28
+XD gc gc 0 0 sky130_fd_pr__nfet_01v8 W=3 L=0.5
+Vdc dc 0 0.4
+XC dc gc 0 0 sky130_fd_pr__nfet_01v8 W=3 L=0.5
+* the CML load resistor, measured with 10 uA
+XRL rl vdd 0 sky130_fd_pr__res_high_po_0p69 L=14
+Il rl 0 10u
+.control
+  set width=200
+  alter Vdd dc=1.62
+  dc temp -40 125 82.5
+  echo "#VDD 1.62"
+  let ia = -i(Vda)
+  let ib = -i(Vdb)
+  let ic = -i(Vdc)
+  let rl = (v(vdd) - v(rl)) / 10e-6
+  print ia ib ic rl
+  alter Vdd dc=1.8
+  dc temp -40 125 82.5
+  echo "#VDD 1.8"
+  let ia = -i(Vda)
+  let ib = -i(Vdb)
+  let ic = -i(Vdc)
+  let rl = (v(vdd) - v(rl)) / 10e-6
+  print ia ib ic rl
+  alter Vdd dc=1.98
+  dc temp -40 125 82.5
+  echo "#VDD 1.98"
+  let ia = -i(Vda)
+  let ib = -i(Vdb)
+  let ic = -i(Vdc)
+  let rl = (v(vdd) - v(rl)) / 10e-6
+  print ia ib ic rl
+.endc
+.end

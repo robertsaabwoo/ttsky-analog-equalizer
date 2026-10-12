@@ -1,0 +1,21 @@
+* R0: loop-filter element values -- R by DC, C1 and C2 by AC at 0.8 V bias
+.lib /home/ttuser/pdk/sky130A/libs.tech/ngspice/sky130.lib.spice tt
+.include /home/ttuser/ssh_analog/ttsky-analog-equalizer/xschem/tuning/vw/frozen_c1x16.inc
+Vdd vdd 0 1.8
+I1 0 ra DC 1u
+Vrb rb 0 0.79
+xr 0 0 vdd vdd ra rb tiny_pll_loop_filter_res
+V1 c1 0 DC 0.8 AC 1
+xc1 0 0 vdd vdd c1 0 tiny_pll_loop_filter_cap1
+V2 c2 0 DC 0.8 AC 1
+xc2 0 0 vdd vdd c2 0 tiny_pll_loop_filter_cap2
+.control
+  op
+  let r_kohm = (v(ra)-v(rb))/1e-6/1e3
+  print r_kohm
+  ac lin 1 100meg 100meg
+  let c1_ff = -imag(i(V1))/(2*3.14159265*100e6)*1e15
+  let c2_ff = -imag(i(V2))/(2*3.14159265*100e6)*1e15
+  print c1_ff c2_ff
+.endc
+.end

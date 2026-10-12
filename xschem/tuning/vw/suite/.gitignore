@@ -1,0 +1,5 @@
+*/*.log
+*/*.dat
+*/*.raw
+overnight.out
+overnight_summary.txt

@@ -1,0 +1,64 @@
+* B2 (ff, rc=hh): charge-pump current, bias_gen vs cp_bias (gen_b2.py)
+* corner: mos=ff rc=hh temp=27C
+.param mc_mm_switch=0
+.param mc_pr_switch=0
+.include "/home/ttuser/pdk/sky130A/libs.tech/ngspice/corners/ff.spice"
+.include "/home/ttuser/pdk/sky130A/libs.tech/ngspice/r+c/res_high__cap_high.spice"
+.include "/home/ttuser/pdk/sky130A/libs.tech/ngspice/r+c/res_high__cap_high__lin.spice"
+.include "/home/ttuser/pdk/sky130A/libs.tech/ngspice/corners/ff/specialized_cells.spice"
+.temp 27
+
+.include /home/ttuser/pdk/sky130A/libs.ref/sky130_fd_sc_hd/spice/sky130_fd_sc_hd.spice
+.include /home/ttuser/ssh_analog/ttsky-analog-equalizer/xschem/tuning/cml/.netlists/frozen.inc
+.include /home/ttuser/ssh_analog/ttsky-analog-equalizer/xschem/tuning/vw/bias/cp_bias.inc
+Vdd vdd 0 1.8
+Vhi hi 0 1.8
+* a: tiny_pll_bias_gen
+xbga 0 0 vdd vdd bna vdd 0 bpa tiny_pll_bias_gen
+xcau vdd vdd 0 0 oau hi 0 bna bpa tiny_pll_charge_pump
+xcad vdd vdd 0 0 oad 0 hi bna bpa tiny_pll_charge_pump
+Vau oau 0 0.79
+Vad oad 0 0.79
+* b: cp_bias
+xbgb vdd 0 bnb bpb cp_bias
+xcbu vdd vdd 0 0 obu hi 0 bnb bpb tiny_pll_charge_pump
+xcbd vdd vdd 0 0 obd 0 hi bnb bpb tiny_pll_charge_pump
+Vbu obu 0 0.79
+Vbd obd 0 0.79
+* the scaled loop filter's resistor
+XRf rf vdd 0 sky130_fd_pr__res_xhigh_po_0p35 L=5.7 mult=1
+If rf 0 10u
+.control
+  set width=200
+  alter Vdd dc=1.62
+  alter Vhi dc=1.62
+  dc temp -40 125 82.5
+  echo "#VDD 1.62"
+  let aup = -i(Vau)
+  let adn = i(Vad)
+  let bup = -i(Vbu)
+  let bdn = i(Vbd)
+  let rf = (v(vdd) - v(rf)) / 10e-6
+  print aup adn bup bdn rf
+  alter Vdd dc=1.8
+  alter Vhi dc=1.8
+  dc temp -40 125 82.5
+  echo "#VDD 1.8"
+  let aup = -i(Vau)
+  let adn = i(Vad)
+  let bup = -i(Vbu)
+  let bdn = i(Vbd)
+  let rf = (v(vdd) - v(rf)) / 10e-6
+  print aup adn bup bdn rf
+  alter Vdd dc=1.98
+  alter Vhi dc=1.98
+  dc temp -40 125 82.5
+  echo "#VDD 1.98"
+  let aup = -i(Vau)
+  let adn = i(Vad)
+  let bup = -i(Vbu)
+  let bdn = i(Vbd)
+  let rf = (v(vdd) - v(rf)) / 10e-6
+  print aup adn bup bdn rf
+.endc
+.end

@@ -1,0 +1,4 @@
+decks/
+results/
+.netlists/
+__pycache__/
