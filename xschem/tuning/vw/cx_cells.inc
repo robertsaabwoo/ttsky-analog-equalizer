@@ -51,7 +51,8 @@ XMt t vbias VSS VSS sky130_fd_pr__nfet_01v8 L=0.5 W=2 nf=1 ad={2*0.29} as={2*0.2
 XPi1 z y VDD VDD sky130_fd_pr__pfet_01v8 L=0.15 W=1 nf=1 ad={1*0.29} as={1*0.29} pd={2*(1+0.29)} ps={2*(1+0.29)} nrd=0 nrs=0 sa=0 sb=0 sd=0
 XNi1 z y VSS VSS sky130_fd_pr__nfet_01v8 L=0.15 W=0.5 nf=1 ad={0.5*0.29} as={0.5*0.29} pd={2*(0.5+0.29)} ps={2*(0.5+0.29)} nrd=0 nrs=0 sa=0 sb=0 sd=0
 XPi2 out z VDD VDD sky130_fd_pr__pfet_01v8 L=0.15 W=2 nf=1 ad={2*0.29} as={2*0.29} pd={2*(2+0.29)} ps={2*(2+0.29)} nrd=0 nrs=0 sa=0 sb=0 sd=0
-XNi2 out z VSS VSS sky130_fd_pr__nfet_01v8 L=0.15 W=1 nf=1 ad={1*0.29} as={1*0.29} pd={2*(1+0.29)} ps={2*(1+0.29)} nrd=0 nrs=0 sa=0 sb=0 sd=0.ends
+XNi2 out z VSS VSS sky130_fd_pr__nfet_01v8 L=0.15 W=1 nf=1 ad={1*0.29} as={1*0.29} pd={2*(1+0.29)} ps={2*(1+0.29)} nrd=0 nrs=0 sa=0 sb=0 sd=0
+.ends
 .subckt cml_pd_cx3w VDD VSS down up ck ckb d db vbias
 x5 q5 q5b d db VDD VSS ck ckb vbias cml_dff
 x1 q1 q1b d db VDD VSS ckb ck vbias cml_dff
