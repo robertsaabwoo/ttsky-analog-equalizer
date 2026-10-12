@@ -480,7 +480,23 @@ applying `vbias` straight to a gate, carry more current at fast NMOS; swings
 grow (q5 0.45 → 0.59 V) and the level-shifted edge sample B falls to
 0.658–1.268 V (tt 0.955–1.417), which starves the CML XOR's lower pair; for
 half of some UIs both XORs output the inverse answer. Candidate fix: the `cx3`
-variant (static-CMOS XORs, no level-shifted latch), sweep queued.
+variant (static-CMOS XORs, no level-shifted latch), sweep below.
+
+**U8 with `cx3` (2026-10-12): two-sided at every corner tested.** Net charge
+per transition (Icp·UI), early side / late side, and balance point:
+
+| corner | CML PD (today) | `cx3` | `cx3` balance |
+|---|---|---|---|
+| tt / 27 °C | +1.40 / −1.53 | +1.35 / −1.50 | +0.059 UI |
+| sf / 27 °C | +0.05 / −0.66 | +1.39 / −1.54 | +0.059 UI |
+| sf / 125 °C | −0.05 / −1.06 | +2.00 / −2.23 | +0.059 UI |
+| ff / 125 °C | −0.31 / −4.99 | +4.03 / −6.43 | +0.055 UI |
+
+The remaining spread is the charge per decision (~3-4.5x at ff/125 C),
+which follows the pump current from `tiny_pll_bias_gen` (a beta multiplier
+on `xhigh_po`), not the PD. `cx3` is the fallback (option 1); option 2a
+(a current reference for the CML tails) is being evaluated first
+(`../vw/bias/`).
 
 **A trap found along the way:** in C3's 0.6–1.0 µs window the loop is still
 acquiring (`vctrl` moved 0.8115 → 0.7858 V within the window in the
