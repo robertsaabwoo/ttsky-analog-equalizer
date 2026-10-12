@@ -84,6 +84,8 @@ if __name__ == "__main__":
     for m, t in BIAS_CORNERS:
         with open(os.path.join(HERE, "decks", f"U8_ref_{m}_{t}C.spice"), "w") as fh:
             fh.write(deck(m, t, ref=True))
+        with open(os.path.join(HERE, "decks", f"U8_ref_cx3w_{m}_{t}C.spice"), "w") as fh:
+            fh.write(deck(m, t, "cml_pd_cx3w", ref=True))
         # the chosen combination: cx3 PD on cml_bias
         with open(os.path.join(HERE, "decks", f"U8_ref_cx3_{m}_{t}C.spice"), "w") as fh:
             fh.write(deck(m, t, "cml_pd_cx3", ref=True))

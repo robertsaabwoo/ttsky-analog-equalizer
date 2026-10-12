@@ -39,3 +39,27 @@ x7 a2 bp up VDD VSS cx_xor
 .subckt cx_xor A B X VDD VSS
 x0 A B VSS VSS VDD VDD X sky130_fd_sc_hd__xor2_1
 .ends
+
+* cx3w: cx3 with the three PD converters at 2x tail current (W=2): at sf/125C on
+* cml_bias the 18 uA converters skew Q5/Q2/B and the static XORs glitch (U9_cx)
+.subckt cml2cmos_w2 out inp inm VDD VSS vbias
+XM1 x inp t VSS sky130_fd_pr__nfet_01v8 L=0.15 W=2 nf=1 ad={2*0.29} as={2*0.29} pd={2*(2+0.29)} ps={2*(2+0.29)} nrd=0 nrs=0 sa=0 sb=0 sd=0
+XM2 y inm t VSS sky130_fd_pr__nfet_01v8 L=0.15 W=2 nf=1 ad={2*0.29} as={2*0.29} pd={2*(2+0.29)} ps={2*(2+0.29)} nrd=0 nrs=0 sa=0 sb=0 sd=0
+XP1 x x VDD VDD sky130_fd_pr__pfet_01v8 L=0.15 W=1 nf=1 ad={1*0.29} as={1*0.29} pd={2*(1+0.29)} ps={2*(1+0.29)} nrd=0 nrs=0 sa=0 sb=0 sd=0
+XP2 y x VDD VDD sky130_fd_pr__pfet_01v8 L=0.15 W=1 nf=1 ad={1*0.29} as={1*0.29} pd={2*(1+0.29)} ps={2*(1+0.29)} nrd=0 nrs=0 sa=0 sb=0 sd=0
+XMt t vbias VSS VSS sky130_fd_pr__nfet_01v8 L=0.5 W=2 nf=1 ad={2*0.29} as={2*0.29} pd={2*(2+0.29)} ps={2*(2+0.29)} nrd=0 nrs=0 sa=0 sb=0 sd=0
+XPi1 z y VDD VDD sky130_fd_pr__pfet_01v8 L=0.15 W=1 nf=1 ad={1*0.29} as={1*0.29} pd={2*(1+0.29)} ps={2*(1+0.29)} nrd=0 nrs=0 sa=0 sb=0 sd=0
+XNi1 z y VSS VSS sky130_fd_pr__nfet_01v8 L=0.15 W=0.5 nf=1 ad={0.5*0.29} as={0.5*0.29} pd={2*(0.5+0.29)} ps={2*(0.5+0.29)} nrd=0 nrs=0 sa=0 sb=0 sd=0
+XPi2 out z VDD VDD sky130_fd_pr__pfet_01v8 L=0.15 W=2 nf=1 ad={2*0.29} as={2*0.29} pd={2*(2+0.29)} ps={2*(2+0.29)} nrd=0 nrs=0 sa=0 sb=0 sd=0
+XNi2 out z VSS VSS sky130_fd_pr__nfet_01v8 L=0.15 W=1 nf=1 ad={1*0.29} as={1*0.29} pd={2*(1+0.29)} ps={2*(1+0.29)} nrd=0 nrs=0 sa=0 sb=0 sd=0.ends
+.subckt cml_pd_cx3w VDD VSS down up ck ckb d db vbias
+x5 q5 q5b d db VDD VSS ck ckb vbias cml_dff
+x1 q1 q1b d db VDD VSS ckb ck vbias cml_dff
+x2 q2 q2b q5 q5b VDD VSS ck ckb vbias cml_dff
+x3 b bb q1 q1b VDD VSS ck ckb vbias cml_dff
+xc5 a5 q5 q5b VDD VSS vbias cml2cmos_w2
+xc2 a2 q2 q2b VDD VSS vbias cml2cmos_w2
+xcb bp b bb VDD VSS vbias cml2cmos_w2
+x6 a5 bp down VDD VSS cx_xor
+x7 a2 bp up VDD VSS cx_xor
+.ends
