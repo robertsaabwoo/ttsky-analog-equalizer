@@ -16,9 +16,14 @@ if [ $rc -ne 0 ] || grep -qi "not found" "$OUT/xschem.log"; then
   echo "xschem netlisting failed (rc=$rc) or missed a symbol:"; cat "$OUT/xschem.log"; exit 1
 fi
 NET="$OUT/cml_lvs.spice"
-# reference + the frozen cells it instantiates, from the same xschem netlist
+# reference + the frozen cells it instantiates, netlisted from the frozen
+# schematics themselves (../ctle_cdr_rx_lvs.sch)
+( cd "$XS" && PWD="$XS" xschem -n -s -x -q --rcfile xschemrc -o "$OUT" ctle_cdr_rx_lvs.sch ) > "$OUT/xschem_frozen.log" 2>&1
+if [ $? -ne 0 ] || grep -qi "not found" "$OUT/xschem_frozen.log"; then
+  echo "xschem netlisting of the frozen design failed:"; cat "$OUT/xschem_frozen.log"; exit 1
+fi
 cp "$HERE/reference.spice" "$OUT/ref_full.spice"
-cat "$XS/tuning/cml/.netlists/frozen.inc" >> "$OUT/ref_full.spice"
+cat "$OUT/ctle_cdr_rx_lvs.spice" >> "$OUT/ref_full.spice"
 fail=0
 for cell in $(cat "$HERE/cells.txt"); do
   netgen -batch lvs "$NET $cell" "$OUT/ref_full.spice $cell" \
