@@ -3,3 +3,7 @@
 */*.raw
 overnight.out
 overnight_summary.txt
+r1/*/*.log
+r1/*/*.log.bad
+conv/
+*.out

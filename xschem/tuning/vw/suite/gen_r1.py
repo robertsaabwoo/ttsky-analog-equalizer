@@ -49,8 +49,8 @@ def deck(design, src):
         t = f"v{v:.2f}".replace(".", "p")
         keep += [f"  alter Vctl dc={v}",
                  "  tran 10p 110n uic",
-                 f"  meas tran {t}_a when v({a},{b})=0 rise=10",
-                 f"  meas tran {t}_b when v({a},{b})=0 rise=40"]
+                 f"  meas tran {t}_a when v({a})=v({b}) rise=10",
+                 f"  meas tran {t}_b when v({a})=v({b}) rise=40"]
     keep += [".endc", ".end", ""]
     return "\n".join(keep)
 
