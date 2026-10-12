@@ -61,6 +61,13 @@ def deck(design, c):
     # outputs named per corner
     s = re.sub(r"write \S+_chain\.raw", f"write {tag(c)}_chain.raw", s)
     s = re.sub(r"wrdata \S+\.dat", f"wrdata {tag(c)}.dat", s)
+    if design == "frozen":
+        # the frozen deck aborts (timestep too small, "vb#branch") on the PRBS6u
+        # edge at 1.067215 us at every corner tried (tt_ll, ss/-40, tt_hh,
+        # 2026-10-12); 10 ohm of pin resistance on the ideal vbias source fixes
+        # the singular current, without changing the 0.9 V bias.
+        s, n = re.subn(r"^Vb  vbias 0 0\.9\s*$", "Vb  vbias_src 0 0.9\nRb  vbias_src vbias 10", s, flags=re.M)
+        assert n == 1, n
     for prbs in ("e2e_prbs3u.inc",):
         s = s.replace(prbs, "e2e_prbs6u.inc")
     assert f"{tag(c)}.dat" in s and f"{tag(c)}_chain.raw" in s
